@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +60,18 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // WhatsApp tokens
+        "wa-teal-dark": "hsl(var(--wa-teal-dark))",
+        "wa-teal": "hsl(var(--wa-teal))",
+        "wa-teal-light": "hsl(var(--wa-teal-light))",
+        "wa-chat-bg": "hsl(var(--wa-chat-bg))",
+        "wa-header": "hsl(var(--wa-header))",
+        "wa-unread": "hsl(var(--wa-unread))",
+        "wa-timestamp": "hsl(var(--wa-timestamp))",
+        "wa-bubble-out": "hsl(var(--wa-bubble-out))",
+        "wa-bubble-in": "hsl(var(--wa-bubble-in))",
+        "wa-status-ring": "hsl(var(--wa-status-ring))",
+        "wa-green-bubble": "hsl(var(--wa-green-bubble))",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,20 +80,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
