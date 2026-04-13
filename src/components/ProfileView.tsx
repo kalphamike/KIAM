@@ -1,7 +1,9 @@
 import profileAvatar from "@/assets/avatars/profile.png";
 import { projects as allProjects } from "@/data/seed";
 import { Phone, Mail, MapPin, Briefcase, Calendar, Globe, ArrowRight } from "lucide-react";
+// Navigation imports removed (AdminLoginButton handles navigation)
 import GoogleReviewsWidget from "./GoogleReviewsWidget";
+import AdminLoginButton from "./AdminLoginButton";
 
 interface ProfileData {
   name: string;
@@ -183,6 +185,7 @@ const ProfileView = ({ profile, reviews = [], onSelectProject }: ProfileViewProp
           </div>
         </div>
       )}
+       <AdminLoginButton />
     </div>
   );
 };
