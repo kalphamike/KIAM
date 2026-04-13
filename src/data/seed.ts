@@ -6,7 +6,7 @@ import koraStatus from "@/assets/status/kora-case.jpg";
 import umwashopStatus from "@/assets/status/umwashop-collection.jpg";
 import portfolioStatus from "@/assets/status/portfolio-update.jpg";
 
-const PROFILE_AVATAR = "https://michelangekalinganire.netlify.app/assets/profile-kEalFiN0.png";
+const PROFILE_AVATAR = "https://raw.githubusercontent.com/kalphamike/KIAM/refs/heads/main/src/assets/avatars/me.jpeg";
 
 export interface Project {
   aiInfo?: string;

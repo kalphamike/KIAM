@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Message } from "@/data/seed";
 import { usePortfolio } from "@/hooks/usePortfolio";
 
-const PROFILE_AVATAR = "https://michelangekalinganire.netlify.app/assets/profile-kEalFiN0.png";
+const PROFILE_AVATAR = "https://raw.githubusercontent.com/kalphamike/KIAM/refs/heads/main/src/assets/avatars/me.jpeg";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import ChatListItem from "@/components/ChatListItem";
 import ChatThread from "@/components/ChatThread";

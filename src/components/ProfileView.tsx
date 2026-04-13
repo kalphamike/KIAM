@@ -1,6 +1,6 @@
 import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight, Linkedin, ExternalLink } from "lucide-react";
 
-const PROFILE_AVATAR = "https://michelangekalinganire.netlify.app/assets/profile-kEalFiN0.png";
+const PROFILE_AVATAR = "https://raw.githubusercontent.com/kalphamike/KIAM/refs/heads/main/src/assets/avatars/me.jpeg";
 
 interface ProfileData {
   name: string;
