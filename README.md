@@ -1,6 +1,6 @@
-# Welcome to your Lovable project
+# Chatfolio Connect
 
-TODO: Document your project here
+A WhatsApp-inspired chat-style portfolio website
 
 a WhatsApp-inspired portfolio! I'm thinking teal greens, chat bubble aesthetics, and that familiar messaging app feel. Let me build this out.
 
