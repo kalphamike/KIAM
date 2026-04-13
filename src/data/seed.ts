@@ -1,11 +1,12 @@
 import koraAvatar from "@/assets/avatars/kora.png";
 import umwashopAvatar from "@/assets/avatars/umwashop.png";
 import portfolioAvatar from "@/assets/avatars/portfolio.png";
-import profileAvatar from "@/assets/avatars/profile.jpeg";
 import inboxAvatar from "@/assets/avatars/inbox.png";
 import koraStatus from "@/assets/status/kora-case.jpg";
 import umwashopStatus from "@/assets/status/umwashop-collection.jpg";
 import portfolioStatus from "@/assets/status/portfolio-update.jpg";
+
+const PROFILE_AVATAR = "https://michelangekalinganire.netlify.app/assets/profile-kEalFiN0.png";
 
 export interface Project {
   aiInfo?: string;
@@ -87,7 +88,7 @@ export const projects: Project[] = [
   {
     id: "about",
     title: "Chat Guidance",
-    avatarUrl: profileAvatar,
+    avatarUrl: PROFILE_AVATAR,
     shortDescription: "Learn more about who I am",
     link: "",
     lastMessage: "Tap to view my profile",
@@ -98,7 +99,7 @@ export const projects: Project[] = [
   {
     id: "inbox",
     title: "Mike(Michelange)",
-    avatarUrl: profileAvatar,
+    avatarUrl: PROFILE_AVATAR,
     shortDescription: "Send me a message",
     link: "",
     lastMessage: "Let's chat!",

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Message } from "@/data/seed";
-import profileAvatar from "@/assets/avatars/profile.png";
 import { usePortfolio } from "@/hooks/usePortfolio";
+
+const PROFILE_AVATAR = "https://michelangekalinganire.netlify.app/assets/profile-kEalFiN0.png";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import ChatListItem from "@/components/ChatListItem";
 import ChatThread from "@/components/ChatThread";
@@ -366,7 +367,7 @@ const Index = () => {
           <div className="flex h-full flex-col items-center justify-center bg-card custom-scroll overflow-y-auto">
             <div className="flex w-full max-w-md flex-col items-center p-8">
               <img
-                src={profileAvatar}
+                src={PROFILE_AVATAR}
                 alt={`${profile.name}'s profile`}
                 className="h-24 w-24 rounded-full object-cover shadow-lg"
                 width={96}

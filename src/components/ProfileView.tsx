@@ -1,5 +1,6 @@
-import profileAvatar from "@/assets/avatars/profile.png";
 import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight, Linkedin, ExternalLink } from "lucide-react";
+
+const PROFILE_AVATAR = "https://michelangekalinganire.netlify.app/assets/profile-kEalFiN0.png";
 
 interface ProfileData {
   name: string;
@@ -46,7 +47,7 @@ const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: 
       <div className="flex flex-col items-center rounded-xl bg-card p-6 shadow-sm">
         <div className="relative">
           <img
-            src={profileAvatar}
+            src={PROFILE_AVATAR}
             alt={`${name}'s profile`}
             className="h-32 w-32 rounded-full object-cover shadow-lg"
             width={128}
