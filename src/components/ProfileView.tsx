@@ -1,5 +1,5 @@
 import profileAvatar from "@/assets/avatars/profile.png";
-import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight, Linkedin } from "lucide-react";
+import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight, Linkedin, ExternalLink } from "lucide-react";
 
 interface ProfileData {
   name: string;
@@ -184,7 +184,18 @@ const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: 
       {/* Reviews - from Supabase */}
       {reviews.length > 0 && (
         <div className="rounded-xl bg-card p-4 shadow-sm">
-          <h3 className="mb-4 text-sm font-medium text-foreground">Client Reviews</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-foreground">Client Reviews</h3>
+            <a
+              href="https://www.google.com/search?q=KIAM&hl=en"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              View all on Google
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
           <div className="space-y-3">
             {reviews.slice(0, 3).map((review) => (
               <div key={review.id} className="border-b border-border pb-3 last:border-0">
