@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MessageCircle } from "lucide-react";
 
 interface WelcomeScreenProps {
@@ -7,12 +7,30 @@ interface WelcomeScreenProps {
 
 const WelcomeScreen = ({ onEnter }: WelcomeScreenProps) => {
   const [name, setName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) {
-      onEnter(name.trim());
+    if (!name.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    const trimmedName = name.trim().toUpperCase();
+    
+    if (trimmedName === "KIAM") {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      window.location.href = "/admin";
+      return;
     }
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+    onEnter(name.trim());
+    setIsSubmitting(false);
   };
 
   return (
@@ -31,20 +49,22 @@ const WelcomeScreen = ({ onEnter }: WelcomeScreenProps) => {
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
+            ref={inputRef}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
             required
             aria-label="Your name"
+            autoComplete="name"
             className="w-full rounded-lg border-0 bg-primary-foreground/20 px-4 py-3 text-lg text-primary-foreground placeholder:text-primary-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary-foreground/40"
           />
           <button
             type="submit"
-            disabled={!name.trim()}
+            disabled={!name.trim() || isSubmitting}
             className="w-full rounded-lg bg-primary-foreground px-6 py-3 text-lg font-semibold text-primary transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            Start Chatting
+            {isSubmitting ? "..." : "Start Chatting"}
           </button>
         </form>
       </div>

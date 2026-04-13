@@ -41,7 +41,7 @@ const StatusFeed = ({ statuses = defaultStatus }: StatusFeedProps) => {
       setProgress(0);
       return next;
     });
-  }, [closeStatus]);
+  }, [closeStatus, statuses.length]);
 
   useEffect(() => {
     if (activeIndex === null) return;

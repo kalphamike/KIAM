@@ -1,9 +1,5 @@
 import profileAvatar from "@/assets/avatars/profile.png";
-import { projects as allProjects } from "@/data/seed";
-import { Phone, Mail, MapPin, Briefcase, Calendar, Globe, ArrowRight } from "lucide-react";
-// Navigation imports removed (AdminLoginButton handles navigation)
-import GoogleReviewsWidget from "./GoogleReviewsWidget";
-import AdminLoginButton from "./AdminLoginButton";
+import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight } from "lucide-react";
 
 interface ProfileData {
   name: string;
@@ -13,6 +9,12 @@ interface ProfileData {
   headline?: string;
   about?: string;
   linkedinUrl?: string;
+}
+
+interface ProjectData {
+  id: string;
+  title: string;
+  avatarUrl: string;
 }
 
 interface ReviewData {
@@ -25,18 +27,17 @@ interface ReviewData {
 interface ProfileViewProps {
   profile?: ProfileData;
   reviews?: ReviewData[];
+  projects?: ProjectData[];
   onSelectProject?: (projectId: string) => void;
 }
 
-const ProfileView = ({ profile, reviews = [], onSelectProject }: ProfileViewProps) => {
-  const profileProjects = allProjects.filter(p => p.id !== "inbox" && p.id !== "about");
-  
+const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: ProfileViewProps) => {
   const name = profile?.name || "Your Name";
   const headline = profile?.headline || "Full-Stack Developer";
-  const about = profile?.about || "Passionate developer with expertise in building web and mobile applications.";
-  const phone = profile?.phone || "+250781975565";
-  const email = profile?.email || "email@example.com";
-  const location = profile?.location || "Kigali, Rwanda";
+  const about = profile?.about || "";
+  const phone = profile?.phone || "";
+  const email = profile?.email || "";
+  const location = profile?.location || "";
 
   return (
     <div className="flex flex-col gap-4 px-2 py-6 -mx-2 fade-in">
@@ -57,119 +58,119 @@ const ProfileView = ({ profile, reviews = [], onSelectProject }: ProfileViewProp
         <p className="text-sm text-muted-foreground">{headline}</p>
         
         <div className="mt-4 flex gap-4">
-          <a
-            href={`https://wa.me/${phone.replace("+", "")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            <Phone className="h-4 w-4" />
-            Message
-          </a>
-          <a
-            href={`tel:${phone}`}
-            className="flex items-center gap-2 rounded-full bg-muted px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted/80"
-          >
-            <Phone className="h-4 w-4" />
-            Call
-          </a>
+          {phone && (
+            <a
+              href={`https://wa.me/${phone.replace("+", "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              <Phone className="h-4 w-4" />
+              Message
+            </a>
+          )}
+          {phone && (
+            <a
+              href={`tel:${phone}`}
+              className="flex items-center gap-2 rounded-full bg-muted px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted/80"
+            >
+              <Phone className="h-4 w-4" />
+              Call
+            </a>
+          )}
         </div>
       </div>
 
       {/* About Section - WhatsApp style */}
-      <div className="rounded-xl bg-card p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <Globe className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">About</span>
+      {about && (
+        <div className="rounded-xl bg-card p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <Globe className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">About</span>
+          </div>
+          <p className="text-sm text-foreground/80 leading-relaxed">
+            {about}
+          </p>
         </div>
-        <p className="text-sm text-foreground/80 leading-relaxed">
-          {about}
-        </p>
-      </div>
+      )}
 
       {/* Media Section - Projects (scrollable) */}
-      <div className="rounded-xl bg-card p-4 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-foreground">Projects</h3>
-          <button className="text-xs text-primary hover:underline">See all</button>
+      {projects.length > 0 && (
+        <div className="rounded-xl bg-card p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-medium text-foreground">Projects</h3>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scroll-dots-h">
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                onClick={() => onSelectProject?.(project.id)}
+                className="group relative shrink-0 w-28"
+              >
+                <div className="aspect-square overflow-hidden rounded-lg bg-muted">
+                  <img
+                    src={project.avatarUrl}
+                    alt={project.title}
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-center text-foreground truncate">{project.title}</p>
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 rounded-lg transition-opacity">
+                  <ArrowRight className="h-6 w-6 text-white" />
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-2 scroll-dots-h">
-          {profileProjects.map((project) => (
-            <button
-              key={project.id}
-              onClick={() => onSelectProject?.(project.id)}
-              className="group relative shrink-0 w-28"
-            >
-              <div className="aspect-square overflow-hidden rounded-lg bg-muted">
-                <img
-                  src={project.avatarUrl}
-                  alt={project.title}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                />
-              </div>
-              <p className="mt-1 text-xs text-center text-foreground truncate">{project.title}</p>
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 rounded-lg transition-opacity">
-                <ArrowRight className="h-6 w-6 text-white" />
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Info Section */}
       <div className="rounded-xl bg-card p-4 shadow-sm">
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Phone className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium text-foreground">{phone}</p>
-              <p className="text-xs text-muted-foreground">Mobile</p>
+          {phone && (
+            <div className="flex items-center gap-3">
+              <Phone className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">{phone}</p>
+                <p className="text-xs text-muted-foreground">Mobile</p>
+              </div>
             </div>
-          </div>
+          )}
           
-          <div className="flex items-center gap-3">
-            <Mail className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium text-foreground">{email}</p>
-              <p className="text-xs text-muted-foreground">Email</p>
+          {email && (
+            <div className="flex items-center gap-3">
+              <Mail className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">{email}</p>
+                <p className="text-xs text-muted-foreground">Email</p>
+              </div>
             </div>
-          </div>
+          )}
           
-          <div className="flex items-center gap-3">
-            <MapPin className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium text-foreground">{location}</p>
-              <p className="text-xs text-muted-foreground">Location</p>
+          {location && (
+            <div className="flex items-center gap-3">
+              <MapPin className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">{location}</p>
+                <p className="text-xs text-muted-foreground">Location</p>
+              </div>
             </div>
-          </div>
+          )}
           
-          <div className="flex items-center gap-3">
-            <Briefcase className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium text-foreground">{headline}</p>
-              <p className="text-xs text-muted-foreground">Professional Title</p>
+          {headline && (
+            <div className="flex items-center gap-3">
+              <Briefcase className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">{headline}</p>
+                <p className="text-xs text-muted-foreground">Professional Title</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Skills - can be extended later */}
-      <div className="rounded-xl bg-card p-4 shadow-sm">
-        <h3 className="mb-4 text-sm font-medium text-foreground">Skills</h3>
-        <div className="flex flex-wrap gap-2">
-          {['React', 'Node.js', 'TypeScript', 'PostgreSQL', 'React Native'].map((skill) => (
-            <span 
-              key={skill} 
-              className="rounded-full bg-muted px-3 py-1.5 text-xs text-foreground"
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Reviews - from Supabase or fallback */}
-      {(reviews.length > 0) && (
+      {/* Reviews - from Supabase */}
+      {reviews.length > 0 && (
         <div className="rounded-xl bg-card p-4 shadow-sm">
           <h3 className="mb-4 text-sm font-medium text-foreground">Client Reviews</h3>
           <div className="space-y-3">
@@ -185,7 +186,6 @@ const ProfileView = ({ profile, reviews = [], onSelectProject }: ProfileViewProp
           </div>
         </div>
       )}
-       <AdminLoginButton />
     </div>
   );
 };

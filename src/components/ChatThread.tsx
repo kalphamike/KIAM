@@ -91,7 +91,7 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages, onSendInboxMe
         setVisibleMessages(seedMessages.map(m => m.id));
       }
     }
-  }, [isAbout, project.id]);
+  }, [isAbout, project.id, seedMessages]);
 
   const aboutMessages = isAbout ? seedMessages.filter(m => visibleMessages.includes(m.id)) : messages;
 

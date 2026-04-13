@@ -1,13 +1,26 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAdminAuth } from '@/components/AdminAuth';
-import { projects as staticProjects, OWNER_NAME, OWNER_EMAIL, OWNER_PHONE, OWNER_LOCATION } from '@/data/seed';
-import { googleReviews } from '@/data/google';
-import type { Project } from '@/data/seed';
-import type { GoogleReview } from '@/data/google';
-import { db, generateId, type DbProfile, type StatusItem } from '@/lib/db';
-import { isConfigured, saveProject, deleteProject as dbDeleteProject, saveReview, deleteReview as dbDeleteReview, saveProfileData, saveStatus, deleteStatus } from '@/lib/supabase';
+import {
+  useProjects,
+  useReviews,
+  useStatuses,
+  useProfile,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+  useCreateReview,
+  useUpdateReview,
+  useDeleteReview,
+  useCreateStatus,
+  useDeleteStatus,
+  useUpdateProfile,
+  QUERY_KEYS,
+} from '@/hooks/useCMS';
+import { supabase } from '@/lib/supabase';
+import type { DbProject, DbReview, DbStatus, DbProfile } from '@/lib/supabase';
 import { Plus, Trash2, Edit2, LogOut, Package, Star, BarChart2, MessageSquare, User, Save, X, Check, RefreshCw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 type Tab = 'projects' | 'reviews' | 'statuses' | 'ai' | 'profile';
 
@@ -36,235 +49,266 @@ function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose:
   );
 }
 
-export default function AdminDashboard() {
-  const { loading: authLoading, configured, isDemo } = useAdminAuth();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('projects');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [reviews, setReviews] = useState<GoogleReview[]>([]);
-  const [profile, setProfile] = useState<DbProfile>({ id: 'main', name: OWNER_NAME, email: OWNER_EMAIL, phone: OWNER_PHONE, location: OWNER_LOCATION, headline: '', about: '', linkedin_url: '' });
-  const [loading, setLoading] = useState(true);
+const generateId = (): string => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-  // Modal states
+export default function AdminDashboard() {
+  const { loading: authLoading, configured, isDemo, isAuthenticated, logout } = useAdminAuth();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  
+  const { data: projects = [], isLoading: projectsLoading } = useProjects();
+  const { data: reviews = [], isLoading: reviewsLoading } = useReviews();
+  const { data: statuses = [], isLoading: statusesLoading } = useStatuses();
+  const { data: profile, isLoading: profileLoading } = useProfile();
+
+  const createProject = useCreateProject();
+  const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
+  const createReview = useCreateReview();
+  const updateReview = useUpdateReview();
+  const deleteReview = useDeleteReview();
+  const createStatus = useCreateStatus();
+  const deleteStatus = useDeleteStatus();
+  const updateProfile = useUpdateProfile();
+
+  const [activeTab, setActiveTab] = useState<Tab>('projects');
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [editingReview, setEditingReview] = useState<GoogleReview | null>(null);
-  const [statuses, setStatuses] = useState<StatusItem[]>([]);
+  const [editingProject, setEditingProject] = useState<Partial<DbProject> | null>(null);
+  const [editingReview, setEditingReview] = useState<Partial<DbReview> | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [editingStatus, setEditingStatus] = useState<StatusItem | null>(null);
+  const [editingStatus, setEditingStatus] = useState<Partial<DbStatus> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [localProfile, setLocalProfile] = useState<Partial<DbProfile>>({});
 
   useEffect(() => {
-    // Load data from database
-    const storedProjects = db.getProjects(staticProjects);
-    const storedReviews = db.getReviews(googleReviews);
-    const storedProfile = db.getProfile({ id: 'main', name: OWNER_NAME, email: OWNER_EMAIL, phone: OWNER_PHONE, location: OWNER_LOCATION });
-    const storedStatuses = db.getStatuses([]);
-    
-    setProjects(storedProjects);
-    setReviews(storedReviews);
-    setProfile(storedProfile);
-    setStatuses(storedStatuses);
-    setLoading(false);
-  }, []);
+    if (profile) {
+      setLocalProfile(profile);
+    }
+  }, [profile]);
 
-  const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => setSaving(false), 500);
-  };
+  const loading = projectsLoading || reviewsLoading || statusesLoading || profileLoading;
+
+  if (authLoading || loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   const handleSignOut = () => {
+    logout();
     navigate('/');
   };
 
-  // Project handlers
+  const handleSave = async () => {
+    setSaving(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setSaving(false);
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.projects });
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.reviews });
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.statuses });
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.profile });
+  };
+
   const handleAddProject = () => {
-    setEditingProject({ id: '', title: '', avatarUrl: '', shortDescription: '', link: '', lastMessage: '', lastUpdated: new Date().toISOString(), unread: 0, techStack: [] });
+    setEditingProject({ 
+      id: generateId(),
+      title: '', 
+      avatar_url: '', 
+      short_description: '', 
+      link: '', 
+      last_message: 'New project', 
+      last_updated: new Date().toISOString(),
+      unread: 0,
+      tech_stack: [],
+    });
     setShowProjectModal(true);
   };
 
-  const handleEditProject = (project: Project) => {
-    setEditingProject({ ...project });
+  const handleEditProject = (project: typeof projects[0]) => {
+    setEditingProject({ 
+      id: project.id,
+      title: project.title,
+      avatar_url: project.avatarUrl,
+      short_description: project.shortDescription,
+      link: project.link,
+      last_message: project.lastMessage,
+      last_updated: project.lastUpdated,
+      unread: project.unread,
+      tech_stack: project.techStack,
+      about: project.about,
+    });
     setShowProjectModal(true);
   };
 
   const handleSaveProject = async () => {
     if (!editingProject) return;
+    setSaving(true);
     
-    const project: Project = {
-      ...editingProject,
-      id: editingProject.id || generateId(),
-      lastUpdated: new Date().toISOString(),
-    };
-
-    const existing = projects.findIndex(p => p.id === project.id);
-    let updated: Project[];
-    
-    if (existing >= 0) {
-      updated = [...projects];
-      updated[existing] = project;
-    } else {
-      updated = [...projects, project];
-    }
-    
-    setProjects(updated);
-    db.saveProjects(updated);
-    
-    // Sync to Supabase if configured
-    if (isConfigured()) {
-await saveProject({
-          id: project.id,
-          title: project.title,
-          avatar_url: project.avatarUrl,
-          short_description: project.shortDescription,
-          link: project.link,
-          last_message: project.lastMessage,
-          last_updated: project.lastUpdated,
-          unread: project.unread || 0,
-          tech_stack: project.techStack || [],
-          about: project.about,
-          created_at: new Date().toISOString(),
+    try {
+      if (projects.find(p => p.id === editingProject.id)) {
+        await updateProject.mutateAsync({
+          id: editingProject.id!,
+          title: editingProject.title,
+          avatar_url: editingProject.avatar_url,
+          short_description: editingProject.short_description,
+          link: editingProject.link,
+          last_message: editingProject.last_message,
+          unread: editingProject.unread,
+          tech_stack: editingProject.tech_stack,
+          about: editingProject.about,
         });
+      } else {
+        await createProject.mutateAsync(editingProject);
+      }
+      await handleSave();
+    } catch (err) {
+      console.error('Failed to save project:', err);
     }
     
     setShowProjectModal(false);
     setEditingProject(null);
-    handleSave();
+    setSaving(false);
   };
 
   const handleDeleteProject = async (id: string) => {
     if (confirm('Delete this project?')) {
-      const updated = projects.filter(p => p.id !== id);
-      setProjects(updated);
-      db.saveProjects(updated);
-      if (isConfigured()) {
-        await dbDeleteProject(id);
+      setSaving(true);
+      try {
+        await deleteProject.mutateAsync(id);
+        await handleSave();
+      } catch (err) {
+        console.error('Failed to delete project:', err);
       }
+      setSaving(false);
     }
   };
 
-  // Review handlers
   const handleAddReview = () => {
-    setEditingReview({ id: '', authorName: '', authorPhoto: null, rating: 5, text: '', time: 'Just now' });
+    setEditingReview({ 
+      id: generateId(),
+      author_name: '', 
+      author_photo: null, 
+      rating: 5, 
+      text: '', 
+      time: 'Just now',
+    });
     setShowReviewModal(true);
   };
 
-  const handleEditReview = (review: GoogleReview) => {
-    setEditingReview({ ...review });
+  const handleEditReview = (review: typeof reviews[0]) => {
+    setEditingReview({ 
+      id: review.id,
+      author_name: review.authorName,
+      author_photo: review.authorPhoto,
+      rating: review.rating,
+      text: review.text,
+      time: review.time,
+    });
     setShowReviewModal(true);
   };
 
   const handleSaveReview = async () => {
     if (!editingReview) return;
+    setSaving(true);
     
-    const review: GoogleReview = {
-      ...editingReview,
-      id: editingReview.id || generateId(),
-    };
-
-    const existing = reviews.findIndex(r => r.id === review.id);
-    let updated: GoogleReview[];
-    
-    if (existing >= 0) {
-      updated = [...reviews];
-      updated[existing] = review;
-    } else {
-      updated = [review, ...reviews];
-    }
-    
-    setReviews(updated);
-    db.saveReviews(updated);
-    
-    if (isConfigured()) {
-      await saveReview({
-        id: review.id,
-        author_name: review.authorName,
-        author_photo: review.authorPhoto,
-        rating: review.rating,
-        text: review.text,
-        time: review.time,
-        created_at: new Date().toISOString(),
-      });
+    try {
+      if (reviews.find(r => r.id === editingReview.id)) {
+        await updateReview.mutateAsync({
+          id: editingReview.id!,
+          author_name: editingReview.author_name,
+          author_photo: editingReview.author_photo,
+          rating: editingReview.rating,
+          text: editingReview.text,
+          time: editingReview.time,
+        });
+      } else {
+        await createReview.mutateAsync(editingReview);
+      }
+      await handleSave();
+    } catch (err) {
+      console.error('Failed to save review:', err);
     }
     
     setShowReviewModal(false);
     setEditingReview(null);
-    handleSave();
+    setSaving(false);
   };
 
   const handleDeleteReview = async (id: string) => {
     if (confirm('Delete this review?')) {
-      const updated = reviews.filter(r => r.id !== id);
-      setReviews(updated);
-      db.saveReviews(updated);
-      if (isConfigured()) {
-        await dbDeleteReview(id);
+      setSaving(true);
+      try {
+        await deleteReview.mutateAsync(id);
+        await handleSave();
+      } catch (err) {
+        console.error('Failed to delete review:', err);
       }
+      setSaving(false);
     }
   };
 
-  // Status handlers
-const handleSaveStatus = async () => {
-      if (!editingStatus) return;
-      const status: StatusItem = { ...editingStatus, id: editingStatus.id || generateId(), timestamp: new Date().toISOString() };
-      const existing = statuses.findIndex(s => s.id === status.id);
-      let updated: StatusItem[];
-      if (existing >= 0) { updated = [...statuses]; updated[existing] = status; }
-      else { updated = [...statuses, status]; }
-      setStatuses(updated);
-      db.saveStatuses(updated);
-      if (isConfigured()) {
-        await saveStatus({ id: status.id, project_id: status.projectId, title: status.title, media_url: status.mediaUrl, timestamp: status.timestamp });
-      }
-      setShowStatusModal(false);
-      setEditingStatus(null);
-      handleSave();
-      // Navigate back to main site to see the new status
-      navigate('/');
-    };
+  const handleAddStatus = () => {
+    setEditingStatus({ 
+      id: generateId(),
+      project_id: '', 
+      title: '', 
+      media_url: '',
+    });
+    setShowStatusModal(true);
+  };
 
+  const handleSaveStatus = async () => {
+    if (!editingStatus) return;
+    setSaving(true);
+    
+    try {
+      await createStatus.mutateAsync(editingStatus);
+      await handleSave();
+      navigate('/');
+    } catch (err) {
+      console.error('Failed to save status:', err);
+    }
+    
+    setShowStatusModal(false);
+    setEditingStatus(null);
+    setSaving(false);
+  };
 
   const handleDeleteStatus = async (id: string) => {
     if (confirm('Delete this status?')) {
-      const updated = statuses.filter(s => s.id !== id);
-      setStatuses(updated);
-      db.saveStatuses(updated);
-      if (isConfigured()) { await deleteStatus(id); }
+      setSaving(true);
+      try {
+        await deleteStatus.mutateAsync(id);
+        await handleSave();
+      } catch (err) {
+        console.error('Failed to delete status:', err);
+      }
+      setSaving(false);
     }
   };
 
-  // Profile handler
   const handleSaveProfile = async () => {
-    db.saveProfile(profile);
-    if (isConfigured()) {
-      await saveProfileData({
+    setSaving(true);
+    try {
+      await updateProfile.mutateAsync({
         id: 'main',
-        name: profile.name,
-        email: profile.email,
-        phone: profile.phone,
-        location: profile.location,
-        headline: profile.headline || '',
-        about: profile.about || '',
-        linkedin_url: profile.linkedin_url || '',
+        name: localProfile.name,
+        email: localProfile.email,
+        phone: localProfile.phone,
+        location: localProfile.location,
+        headline: localProfile.headline,
+        about: localProfile.about,
+        linkedin_url: localProfile.linkedin_url,
       });
+      await handleSave();
+    } catch (err) {
+      console.error('Failed to save profile:', err);
     }
-    handleSave();
+    setSaving(false);
   };
-
-  // Reset data
-  const handleReset = () => {
-    if (confirm('Reset all data to defaults? This cannot be undone.')) {
-      db.clear();
-      setProjects(staticProjects);
-      setReviews(googleReviews);
-      setProfile({ id: 'main', name: OWNER_NAME, email: OWNER_EMAIL, phone: OWNER_PHONE, location: OWNER_LOCATION });
-    }
-  };
-
-  if (authLoading || loading) {
-    return <LoadingScreen />;
-  }
 
   const tabs = [
     { id: 'projects', label: 'Projects', icon: Package },
@@ -301,10 +345,10 @@ const handleSaveStatus = async () => {
               {isDemo ? '⚡ Demo Mode' : '🔗 API Connected'}
             </div>
             <button
-              onClick={handleReset}
+              onClick={() => navigate('/')}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              <RefreshCw className="h-4 w-4" /> Reset Data
+              <RefreshCw className="h-4 w-4" /> View Site
             </button>
             <button
               onClick={handleSignOut}
@@ -322,7 +366,6 @@ const handleSaveStatus = async () => {
             </div>
           )}
 
-          {/* Projects Tab */}
           {activeTab === 'projects' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -332,30 +375,33 @@ const handleSaveStatus = async () => {
                 </button>
               </div>
               <div className="space-y-2">
-                {projects.map(project => (
-                  <div key={project.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
-                    <div className="flex items-center gap-3">
-                      <img src={project.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover bg-muted" />
-                      <div>
-                        <p className="font-medium text-foreground">{project.title}</p>
-                        <p className="text-sm text-muted-foreground">{project.shortDescription}</p>
+                {projects.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No projects yet. Click "Add Project" to create one.</p>
+                ) : (
+                  projects.map(project => (
+                    <div key={project.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+                      <div className="flex items-center gap-3">
+                        <img src={project.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover bg-muted" />
+                        <div>
+                          <p className="font-medium text-foreground">{project.title}</p>
+                          <p className="text-sm text-muted-foreground">{project.shortDescription}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditProject(project)} className="p-2 rounded hover:bg-muted">
+                          <Edit2 className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        <button onClick={() => handleDeleteProject(project.id)} className="p-2 rounded hover:bg-destructive/10">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEditProject(project)} className="p-2 rounded hover:bg-muted">
-                        <Edit2 className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                      <button onClick={() => handleDeleteProject(project.id)} className="p-2 rounded hover:bg-destructive/10">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
 
-          {/* Reviews Tab */}
           {activeTab === 'reviews' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -365,91 +411,88 @@ const handleSaveStatus = async () => {
                 </button>
               </div>
               <div className="space-y-2">
-                {reviews.map(review => (
-                  <div key={review.id} className="p-4 rounded-lg border border-border bg-card">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">{review.authorName}</span>
-                        <span className="text-yellow-500">{'★'.repeat(review.rating)}</span>
+                {reviews.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No reviews yet.</p>
+                ) : (
+                  reviews.map(review => (
+                    <div key={review.id} className="p-4 rounded-lg border border-border bg-card">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{review.authorName}</span>
+                          <span className="text-yellow-500">{'★'.repeat(review.rating)}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEditReview(review)} className="p-2 rounded hover:bg-muted">
+                            <Edit2 className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                          <button onClick={() => handleDeleteReview(review.id)} className="p-2 rounded hover:bg-destructive/10">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEditReview(review)} className="p-2 rounded hover:bg-muted">
-                          <Edit2 className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                        <button onClick={() => handleDeleteReview(review.id)} className="p-2 rounded hover:bg-destructive/10">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </button>
-                      </div>
+                      <p className="text-sm text-muted-foreground">{review.text}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">{review.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Statuses Tab */}
-          {activeTab === 'statuses' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">Statuses</h2>
-                <button onClick={() => { setEditingStatus({ id: '', projectId: '', title: '', mediaUrl: '', timestamp: new Date().toISOString() }); setShowStatusModal(true); }} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-                  <Plus className="h-4 w-4" /> Add Status
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                {statuses.map(status => (
-                  <div key={status.id} className="rounded-lg border border-border overflow-hidden">
-                    <img src={status.mediaUrl || '/placeholder.jpg'} alt="" className="w-full h-32 object-cover bg-muted" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/200x200?text=Status'; }} />
-                    <div className="p-2 flex items-center justify-between">
-                      <p className="text-sm text-foreground truncate">{status.title}</p>
-                      <div className="flex gap-1">
-                        <button onClick={() => { setEditingStatus({ ...status }); setShowStatusModal(true); }} className="p-1 hover:bg-muted rounded">
-                          <Edit2 className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                        <button onClick={() => handleDeleteStatus(status.id)} className="p-1 hover:bg-destructive/10 rounded">
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {statuses.length === 0 && (
-                  <p className="col-span-3 text-muted-foreground text-center py-8">No statuses yet. Add your first status!</p>
+                  ))
                 )}
               </div>
             </div>
           )}
 
-          {/* AI Tab */}
+          {activeTab === 'statuses' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Statuses</h2>
+                <button onClick={handleAddStatus} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+                  <Plus className="h-4 w-4" /> Add Status
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {statuses.length === 0 ? (
+                  <p className="col-span-3 text-muted-foreground text-center py-8">No statuses yet.</p>
+                ) : (
+                  statuses.map(status => (
+                    <div key={status.id} className="rounded-lg border border-border overflow-hidden">
+                      <img src={status.mediaUrl || '/placeholder.jpg'} alt="" className="w-full h-32 object-cover bg-muted" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/200x200?text=Status'; }} />
+                      <div className="p-2 flex items-center justify-between">
+                        <p className="text-sm text-foreground truncate">{status.title}</p>
+                        <button onClick={() => handleDeleteStatus(status.id)} className="p-1 hover:bg-destructive/10 rounded">
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'ai' && (
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">AI Responses</h2>
               <p className="text-muted-foreground mb-4">AI responses are managed in code. Edit src/lib/ai-chatbot.ts to customize.</p>
-              <a href="https://github.com" target="_blank" className="text-primary hover:underline">View AI Chatbot Code →</a>
             </div>
           )}
 
-          {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Profile</h2>
               <div className="space-y-4 max-w-lg">
                 <div>
-                  <label className="text-sm text-muted-foreground block mb-1">Name</label>
+                  <label className="text-sm text-muted-foreground block mb-1">Name *</label>
                   <input
                     type="text"
-                    value={profile.name}
-                    onChange={e => setProfile({ ...profile, name: e.target.value })}
+                    value={localProfile.name || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, name: e.target.value })}
                     className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+                    required
                   />
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground block mb-1">Headline / Title</label>
                   <input
                     type="text"
-                    value={profile.headline || ''}
-                    onChange={e => setProfile({ ...profile, headline: e.target.value })}
+                    value={localProfile.headline || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, headline: e.target.value })}
                     placeholder="Full-Stack Developer"
                     className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
                   />
@@ -457,8 +500,8 @@ const handleSaveStatus = async () => {
                 <div>
                   <label className="text-sm text-muted-foreground block mb-1">About</label>
                   <textarea
-                    value={profile.about || ''}
-                    onChange={e => setProfile({ ...profile, about: e.target.value })}
+                    value={localProfile.about || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, about: e.target.value })}
                     placeholder="Tell visitors about yourself..."
                     rows={4}
                     className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground resize-none"
@@ -468,8 +511,8 @@ const handleSaveStatus = async () => {
                   <label className="text-sm text-muted-foreground block mb-1">Email</label>
                   <input
                     type="email"
-                    value={profile.email}
-                    onChange={e => setProfile({ ...profile, email: e.target.value })}
+                    value={localProfile.email || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, email: e.target.value })}
                     className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
                   />
                 </div>
@@ -477,8 +520,8 @@ const handleSaveStatus = async () => {
                   <label className="text-sm text-muted-foreground block mb-1">Phone</label>
                   <input
                     type="text"
-                    value={profile.phone}
-                    onChange={e => setProfile({ ...profile, phone: e.target.value })}
+                    value={localProfile.phone || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, phone: e.target.value })}
                     className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
                   />
                 </div>
@@ -486,8 +529,8 @@ const handleSaveStatus = async () => {
                   <label className="text-sm text-muted-foreground block mb-1">Location</label>
                   <input
                     type="text"
-                    value={profile.location}
-                    onChange={e => setProfile({ ...profile, location: e.target.value })}
+                    value={localProfile.location || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, location: e.target.value })}
                     className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
                   />
                 </div>
@@ -495,8 +538,8 @@ const handleSaveStatus = async () => {
                   <label className="text-sm text-muted-foreground block mb-1">LinkedIn URL</label>
                   <input
                     type="text"
-                    value={profile.linkedin_url || ''}
-                    onChange={e => setProfile({ ...profile, linkedin_url: e.target.value })}
+                    value={localProfile.linkedin_url || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, linkedin_url: e.target.value })}
                     placeholder="https://linkedin.com/in/..."
                     className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
                   />
@@ -510,8 +553,7 @@ const handleSaveStatus = async () => {
         </main>
       </div>
 
-      {/* Project Modal */}
-      <Modal isOpen={showProjectModal} onClose={() => { setShowProjectModal(false); setEditingProject(null); }} title={editingProject?.id ? 'Edit Project' : 'Add Project'}>
+      <Modal isOpen={showProjectModal} onClose={() => { setShowProjectModal(false); setEditingProject(null); }} title={editingProject?.id && projects.find(p => p.id === editingProject?.id) ? 'Edit Project' : 'Add Project'}>
         <div className="space-y-4">
           <div>
             <label className="text-sm text-muted-foreground block mb-1">Title *</label>
@@ -520,14 +562,15 @@ const handleSaveStatus = async () => {
               value={editingProject?.title || ''}
               onChange={e => setEditingProject(prev => prev ? { ...prev, title: e.target.value } : null)}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+              required
             />
           </div>
           <div>
             <label className="text-sm text-muted-foreground block mb-1">Avatar URL *</label>
             <input
               type="text"
-              value={editingProject?.avatarUrl || ''}
-              onChange={e => setEditingProject(prev => prev ? { ...prev, avatarUrl: e.target.value } : null)}
+              value={editingProject?.avatar_url || ''}
+              onChange={e => setEditingProject(prev => prev ? { ...prev, avatar_url: e.target.value } : null)}
               placeholder="/avatars/project.png"
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
             />
@@ -536,8 +579,8 @@ const handleSaveStatus = async () => {
             <label className="text-sm text-muted-foreground block mb-1">Short Description</label>
             <input
               type="text"
-              value={editingProject?.shortDescription || ''}
-              onChange={e => setEditingProject(prev => prev ? { ...prev, shortDescription: e.target.value } : null)}
+              value={editingProject?.short_description || ''}
+              onChange={e => setEditingProject(prev => prev ? { ...prev, short_description: e.target.value } : null)}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
             />
           </div>
@@ -551,25 +594,35 @@ const handleSaveStatus = async () => {
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
             />
           </div>
-           <div>
-             <label className="text-sm text-muted-foreground block mb-1">Last Message</label>
-             <input
-               type="text"
-               value={editingProject?.lastMessage || ''}
-               onChange={e => setEditingProject(prev => prev ? { ...prev, lastMessage: e.target.value } : null)}
-               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
-             />
-           </div>
-           <div>
-             <label className="text-sm text-muted-foreground block mb-1">About (AI)</label>
-             <textarea
-               value={editingProject?.about || ''}
-               onChange={e => setEditingProject(prev => prev ? { ...prev, about: e.target.value } : null)}
-               placeholder="Detailed description for AI"
-               rows={4}
-               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground"
-             />
-           </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1">Last Message</label>
+            <input
+              type="text"
+              value={editingProject?.last_message || ''}
+              onChange={e => setEditingProject(prev => prev ? { ...prev, last_message: e.target.value } : null)}
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1">Tech Stack (comma-separated)</label>
+            <input
+              type="text"
+              value={(editingProject?.tech_stack || []).join(', ')}
+              onChange={e => setEditingProject(prev => prev ? { ...prev, tech_stack: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : null)}
+              placeholder="React, TypeScript, Node.js"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1">About (AI)</label>
+            <textarea
+              value={editingProject?.about || ''}
+              onChange={e => setEditingProject(prev => prev ? { ...prev, about: e.target.value } : null)}
+              placeholder="Detailed description for AI"
+              rows={4}
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground"
+            />
+          </div>
           <div className="flex gap-2 pt-2">
             <button onClick={handleSaveProject} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
               <Check className="h-4 w-4" /> Save
@@ -581,16 +634,16 @@ const handleSaveStatus = async () => {
         </div>
       </Modal>
 
-      {/* Review Modal */}
-      <Modal isOpen={showReviewModal} onClose={() => { setShowReviewModal(false); setEditingReview(null); }} title={editingReview?.id ? 'Edit Review' : 'Add Review'}>
+      <Modal isOpen={showReviewModal} onClose={() => { setShowReviewModal(false); setEditingReview(null); }} title={editingReview?.id && reviews.find(r => r.id === editingReview?.id) ? 'Edit Review' : 'Add Review'}>
         <div className="space-y-4">
           <div>
             <label className="text-sm text-muted-foreground block mb-1">Name *</label>
             <input
               type="text"
-              value={editingReview?.authorName || ''}
-              onChange={e => setEditingReview(prev => prev ? { ...prev, authorName: e.target.value } : null)}
+              value={editingReview?.author_name || ''}
+              onChange={e => setEditingReview(prev => prev ? { ...prev, author_name: e.target.value } : null)}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+              required
             />
           </div>
           <div>
@@ -611,7 +664,7 @@ const handleSaveStatus = async () => {
               value={editingReview?.text || ''}
               onChange={e => setEditingReview(prev => prev ? { ...prev, text: e.target.value } : null)}
               rows={4}
-              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground resize-none"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 resize-none"
             />
           </div>
           <div className="flex gap-2 pt-2">
@@ -625,8 +678,7 @@ const handleSaveStatus = async () => {
         </div>
       </Modal>
 
-      {/* Status Modal */}
-      <Modal isOpen={showStatusModal} onClose={() => { setShowStatusModal(false); setEditingStatus(null); }} title={editingStatus?.id ? 'Edit Status' : 'Add Status'}>
+      <Modal isOpen={showStatusModal} onClose={() => { setShowStatusModal(false); setEditingStatus(null); }} title="Add Status">
         <div className="space-y-4">
           <div>
             <label className="text-sm text-muted-foreground block mb-1">Title *</label>
@@ -635,13 +687,14 @@ const handleSaveStatus = async () => {
               value={editingStatus?.title || ''}
               onChange={e => setEditingStatus(prev => prev ? { ...prev, title: e.target.value } : null)}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+              required
             />
           </div>
           <div>
             <label className="text-sm text-muted-foreground block mb-1">Project</label>
             <select
-              value={editingStatus?.projectId || ''}
-              onChange={e => setEditingStatus(prev => prev ? { ...prev, projectId: e.target.value } : null)}
+              value={editingStatus?.project_id || ''}
+              onChange={e => setEditingStatus(prev => prev ? { ...prev, project_id: e.target.value } : null)}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
             >
               <option value="">Select a project</option>
@@ -654,8 +707,8 @@ const handleSaveStatus = async () => {
             <label className="text-sm text-muted-foreground block mb-1">Image URL</label>
             <input
               type="text"
-              value={editingStatus?.mediaUrl || ''}
-              onChange={e => setEditingStatus(prev => prev ? { ...prev, mediaUrl: e.target.value } : null)}
+              value={editingStatus?.media_url || ''}
+              onChange={e => setEditingStatus(prev => prev ? { ...prev, media_url: e.target.value } : null)}
               placeholder="https://..."
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground"
             />
