@@ -1,10 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
-import { statusItems, projects } from "@/data/seed";
+import { statusItems as defaultStatus, projects } from "@/data/seed";
+
+interface StatusItem {
+  id: string;
+  projectId: string;
+  title: string;
+  mediaUrl: string;
+  timestamp: string;
+}
+
+interface StatusFeedProps {
+  statuses?: StatusItem[];
+}
 
 const STATUS_DURATION = 5000;
 
-const StatusFeed = () => {
+const StatusFeed = ({ statuses = defaultStatus }: StatusFeedProps) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
@@ -22,7 +34,7 @@ const StatusFeed = () => {
     setActiveIndex((prev) => {
       if (prev === null) return null;
       const next = prev + 1;
-      if (next >= statusItems.length) {
+      if (next >= statuses.length) {
         closeStatus();
         return null;
       }
@@ -54,8 +66,8 @@ const StatusFeed = () => {
   return (
     <>
       {/* Avatar row */}
-      <div className="flex gap-3 overflow-x-auto px-4 py-3 scrollbar-hide">
-        {statusItems.map((item, i) => (
+      <div className="flex gap-3 overflow-x-auto px-4 py-3 scroll-dots-h">
+        {statuses.map((item, i) => (
           <button
             key={item.id}
             onClick={() => { setActiveIndex(i); setProgress(0); }}
@@ -95,7 +107,7 @@ const StatusFeed = () => {
         >
           {/* Progress bars */}
           <div className="flex gap-1 px-3 pt-3">
-            {statusItems.map((_, i) => (
+            {statuses.map((_, i) => (
               <div key={i} className="h-0.5 flex-1 overflow-hidden rounded-full bg-primary-foreground/30">
                 <div
                   className="h-full rounded-full bg-primary-foreground transition-none"
@@ -110,14 +122,14 @@ const StatusFeed = () => {
           {/* Header */}
           <div className="flex items-center gap-3 px-3 py-2">
             <img
-              src={getProjectAvatar(statusItems[activeIndex].projectId)}
+              src={getProjectAvatar(statuses[activeIndex].projectId)}
               alt=""
               className="h-8 w-8 rounded-full object-cover"
               width={32}
               height={32}
             />
             <span className="flex-1 text-sm font-medium text-primary-foreground">
-              {statusItems[activeIndex].title}
+              {statuses[activeIndex].title}
             </span>
             <button
               onClick={(e) => { e.stopPropagation(); closeStatus(); }}
@@ -131,8 +143,8 @@ const StatusFeed = () => {
           {/* Image */}
           <div className="flex flex-1 items-center justify-center px-2">
             <img
-              src={statusItems[activeIndex].mediaUrl}
-              alt={statusItems[activeIndex].title}
+              src={statuses[activeIndex].mediaUrl}
+              alt={statuses[activeIndex].title}
               className="max-h-full max-w-full rounded-lg object-contain"
             />
           </div>

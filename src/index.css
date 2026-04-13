@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -36,7 +36,6 @@
 
     --radius: 0.75rem;
 
-    /* WhatsApp-inspired tokens */
     --wa-teal-dark: 168 85% 20%;
     --wa-teal: 168 60% 34%;
     --wa-teal-light: 168 40% 45%;
@@ -89,18 +88,114 @@
     @apply ring-2 ring-wa-status-ring ring-offset-2;
   }
 
-  .slide-in-right {
-    animation: slideInRight 0.25s ease-out;
-  }
-
-  .slide-in-left {
-    animation: slideInLeft 0.25s ease-out;
-  }
-
-  .fade-in {
-    animation: fadeIn 0.3s ease-out;
-  }
+.slide-in-right {
+  animation: slideInRight 0.25s ease-out;
 }
+
+.slide-in-left {
+  animation: slideInLeft 0.25s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.message-pop {
+  animation: messagePop 0.3s ease-out;
+}
+
+.message-pop-out {
+  animation: messagePopOut 0.3s ease-out;
+}
+
+.avatar-pulse {
+  animation: avatarPulse 2s infinite;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground) / 0.1) 50%, hsl(var(--muted)) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.bounce-in {
+  animation: bounceIn 0.4s ease-out;
+}
+
+.scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.glow {
+  animation: glow 2s ease-in-out infinite;
+}
+  }
+
+  /* Dot scrollbar - vertical */
+  .scroll-dots::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-dots::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px;
+  }
+
+  .scroll-dots::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scroll-dots::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scroll-dots {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+  }
+
+  /* Dot scrollbar - horizontal */
+  .scroll-dots-h::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-dots-h::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px;
+  }
+
+  .scroll-dots-h::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scroll-dots-h::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scroll-dots-h::-webkit-scrollbar-track-piece {
+    background: transparent;
+  }
+
+  .scroll-dots-h {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+  }
 
 @keyframes slideInRight {
   from { transform: translateX(100%); opacity: 0; }
@@ -116,6 +211,59 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+@keyframes messagePop {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes messagePopOut {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes avatarPulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--wa-status-ring) / 0.4); }
+  50% { box-shadow: 0 0 0 8px hsl(var(--wa-status-ring) / 0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounceIn {
+  0% { transform: translateY(20px); opacity: 0; }
+  60% { transform: translateY(-5px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 20px hsl(var(--primary) / 0.6); }
+}
+
+.suggested-prompt {
+  @apply rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-all duration-200 hover:bg-primary/20 hover:scale-110 hover:shadow-lg;
+  animation: bounceIn 0.4s ease-out;
+  animation-fill-mode: both;
+}
+
+.suggested-prompt:nth-child(1) { animation-delay: 0.1s; }
+.suggested-prompt:nth-child(2) { animation-delay: 0.2s; }
+.suggested-prompt:nth-child(3) { animation-delay: 0.3s; }
 
 @keyframes progressBar {
   from { width: 0%; }

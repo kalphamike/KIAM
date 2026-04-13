@@ -5,17 +5,19 @@ interface ChatListItemProps {
   project: Project;
   onClick: () => void;
   isActive?: boolean;
+  unread?: number;
 }
 
-const ChatListItem = ({ project, onClick, isActive }: ChatListItemProps) => {
+const ChatListItem = ({ project, onClick, isActive, unread }: ChatListItemProps) => {
   const timeAgo = formatDistanceToNow(new Date(project.lastUpdated), { addSuffix: true });
+  const unreadCount = unread !== undefined ? unread : (project.unread || 0);
 
   return (
     <button
       onClick={onClick}
       aria-label={`Open ${project.title}`}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 ${
-        isActive ? "bg-muted" : ""
+      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-muted/50 hover:scale-[1.02] ${
+        isActive ? "bg-muted scale-[1.02]" : ""
       }`}
     >
       <img
@@ -33,9 +35,9 @@ const ChatListItem = ({ project, onClick, isActive }: ChatListItemProps) => {
         </div>
         <div className="flex items-center justify-between">
           <p className="truncate text-sm text-muted-foreground">{project.lastMessage}</p>
-          {project.unread && project.unread > 0 ? (
+          {unreadCount > 0 ? (
             <span className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-wa-unread text-[10px] font-bold text-primary-foreground">
-              {project.unread}
+              {unreadCount}
             </span>
           ) : null}
         </div>

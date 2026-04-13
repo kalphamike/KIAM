@@ -1,13 +1,16 @@
 import koraAvatar from "@/assets/avatars/kora.png";
 import umwashopAvatar from "@/assets/avatars/umwashop.png";
 import portfolioAvatar from "@/assets/avatars/portfolio.png";
-import profileAvatar from "@/assets/avatars/profile.png";
+import profileAvatar from "@/assets/avatars/profile.jpeg";
 import inboxAvatar from "@/assets/avatars/inbox.png";
 import koraStatus from "@/assets/status/kora-case.jpg";
 import umwashopStatus from "@/assets/status/umwashop-collection.jpg";
 import portfolioStatus from "@/assets/status/portfolio-update.jpg";
 
 export interface Project {
+  aiInfo?: string;
+  suggestions?: string[]; /* Additional field for AI */
+  about?: string;
   id: string;
   title: string;
   avatarUrl: string;
@@ -16,6 +19,7 @@ export interface Project {
   lastMessage: string;
   lastUpdated: string;
   unread?: number;
+  techStack?: string[];
 }
 
 export interface Message {
@@ -34,8 +38,10 @@ export interface StatusItem {
   timestamp: string;
 }
 
-export const OWNER_PHONE = "+250780000000"; // Replace with actual number
-export const OWNER_NAME = "Mike";
+export const OWNER_PHONE = "+250781975565";
+export const OWNER_NAME = "Alpha Michelange";
+export const OWNER_EMAIL = "ishimwealpha@gmail.com";
+export const OWNER_LOCATION = "Kigali, Rwanda";
 
 export const projects: Project[] = [
   {
@@ -47,6 +53,10 @@ export const projects: Project[] = [
     lastMessage: "Case study published",
     lastUpdated: "2026-03-10T09:30:00Z",
     unread: 2,
+    techStack: ["React", "Node.js", "PostgreSQL"],
+    suggestions: ["What are the main features of KORA?", "How does KORA help improve productivity?"],
+    about: "KORA is a personal coaching platform that helps individuals set goals, track progress, and receive personalized coaching sessions.",
+    aiInfo: "KORA is a personal coaching platform for growth and productivity. Features: Personalized coaching sessions, progress tracking, goal setting, analytics dashboard, video calling. Tech stack: React, Node.js, PostgreSQL.",
   },
   {
     id: "umwashop",
@@ -57,6 +67,9 @@ export const projects: Project[] = [
     lastMessage: "New product collection",
     lastUpdated: "2026-02-18T14:20:00Z",
     unread: 1,
+    techStack: ["Next.js", "Stripe", "MongoDB"],
+    suggestions: ["What products are available in UMWAShop?", "How does payment integration work in UMWAShop?"],
+    about: "UMWAShop is an e‑commerce platform that showcases local artisans' products, offering a seamless shopping experience with integrated payments and vendor dashboards.",
   },
   {
     id: "portfolio",
@@ -67,26 +80,56 @@ export const projects: Project[] = [
     lastMessage: "Updated About section",
     lastUpdated: "2026-04-01T08:00:00Z",
     unread: 0,
+    techStack: ["React", "TypeScript", "Tailwind"],
+    suggestions: ["What projects are showcased in the portfolio?", "How can I view the case studies?"] ,
+    about: "The Portfolio Overview compiles recent projects and case studies into a single showcase, highlighting achievements, technologies used, and outcomes.",
   },
   {
     id: "about",
-    title: "About Me",
+    title: "Chat Guidance",
     avatarUrl: profileAvatar,
     shortDescription: "Learn more about who I am",
     link: "",
     lastMessage: "Tap to view my profile",
     lastUpdated: "2026-04-10T10:00:00Z",
     unread: 0,
+    techStack: [],
   },
   {
     id: "inbox",
-    title: "Inbox",
-    avatarUrl: inboxAvatar,
+    title: "Mike(Michelange)",
+    avatarUrl: profileAvatar,
     shortDescription: "Send me a message",
     link: "",
-    lastMessage: "Start a conversation…",
+    lastMessage: "Let's chat!",
     lastUpdated: "2026-04-12T15:45:00Z",
     unread: 0,
+    techStack: [],
+  },
+  {
+    id: "fintrack",
+    title: "FinTrack App",
+    avatarUrl: umwashopAvatar,
+    shortDescription: "Personal finance tracking with visual dashboards",
+    link: "https://example.com/fintrack",
+    lastMessage: "New dashboard released",
+    lastUpdated: "2026-04-15T12:00:00Z",
+    unread: 0,
+    techStack: ["React Native", "Firebase", "D3.js"],
+    suggestions: ["How can I track my expenses using FinTrack?", "What budgeting alerts does FinTrack provide?"],
+    about: "FinTrack helps users track personal finances with visual dashboards, budgeting alerts, and savings goals to improve financial health.",
+  },
+  {
+    id: "healthcare",
+    title: "HealthCare Portal",
+    avatarUrl: koraAvatar,
+    shortDescription: "Patient management system for clinics",
+    link: "https://example.com/healthcare",
+    lastMessage: "HIPAA compliance completed",
+    lastUpdated: "2026-04-08T09:00:00Z",
+    unread: 0,
+    techStack: ["Vue.js", "Python", "PostgreSQL"],
+    about: "HealthCare Portal is a HIPAA‑compliant patient management system that streamlines records, appointments, billing, and analytics for clinics.",
   },
 ];
 
@@ -107,9 +150,15 @@ export const getProjectMessages = (projectId: string, visitorName: string): Mess
       { id: "m-port-2", projectId: "portfolio", sender: "site", text: "This is a collection of all my recent projects and case studies.", timestamp: "2026-04-01T08:02:00Z" },
     ],
     about: [
-      { id: "m-about-1", projectId: "about", sender: "site", text: `Hey ${visitorName}! 👋 I'm Mike — a developer, designer, and digital creator.`, timestamp: "2026-04-10T10:01:00Z" },
-      { id: "m-about-2", projectId: "about", sender: "site", text: "I specialize in building beautiful, user-friendly web applications and digital products.", timestamp: "2026-04-10T10:02:00Z" },
-      { id: "m-about-3", projectId: "about", sender: "site", text: "Skills: React, TypeScript, UI/UX Design, Node.js, Cloud Architecture, Digital Marketing", timestamp: "2026-04-10T10:03:00Z" },
+      { id: "m-about-1", projectId: "about", sender: "site", text: `Hey ${visitorName}! 👋 Welcome to my portfolio!`, timestamp: "2026-04-10T10:01:00Z" },
+      { id: "m-about-2", projectId: "about", sender: "site", text: "Let me show you around! This site is designed like a chat — pretty cool, right?", timestamp: "2026-04-10T10:02:00Z" },
+      { id: "m-about-3", projectId: "about", sender: "site", text: "📱 On mobile, use the bottom tabs to switch between Chats, Status, and Profile.", timestamp: "2026-04-10T10:03:00Z" },
+      { id: "m-about-4", projectId: "about", sender: "site", text: "💬 Chats tab — Browse my projects! Click any project to see details.", timestamp: "2026-04-10T10:04:00Z" },
+      { id: "m-about-5", projectId: "about", sender: "site", text: "📸 Status tab — Check out my project updates and timeline!", timestamp: "2026-04-10T10:05:00Z" },
+      { id: "m-about-6", projectId: "about", sender: "site", text: "👤 Profile tab — See my skills, experience, and what clients say about me.", timestamp: "2026-04-10T10:06:00Z" },
+      { id: "m-about-7", projectId: "about", sender: "site", text: "💡 Pro tip: Click the chat icon in any project to ask the AI questions about that project!", timestamp: "2026-04-10T10:07:00Z" },
+      { id: "m-about-8", projectId: "about", sender: "site", text: "🎯 Want to connect? Click on 'Mike' (the last chat) to send me a message!", timestamp: "2026-04-10T10:08:00Z" },
+      { id: "m-about-9", projectId: "about", sender: "site", text: "Explore my projects and feel free to reach out. Happy to chat! 😊", timestamp: "2026-04-10T10:09:00Z" },
     ],
   };
   return base[projectId] || [];
