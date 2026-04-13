@@ -1,5 +1,5 @@
 import profileAvatar from "@/assets/avatars/profile.png";
-import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight } from "lucide-react";
+import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight, Linkedin } from "lucide-react";
 
 interface ProfileData {
   name: string;
@@ -38,6 +38,7 @@ const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: 
   const phone = profile?.phone || "";
   const email = profile?.email || "";
   const location = profile?.location || "";
+  const linkedinUrl = profile?.linkedinUrl || "";
 
   return (
     <div className="flex flex-col gap-4 px-2 py-6 -mx-2 fade-in">
@@ -57,13 +58,13 @@ const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: 
         <h2 className="mt-4 text-2xl font-bold text-foreground">{name}</h2>
         <p className="text-sm text-muted-foreground">{headline}</p>
         
-        <div className="mt-4 flex gap-4">
+        <div className="mt-4 flex gap-3">
           {phone && (
             <a
               href={`https://wa.me/${phone.replace("+", "")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+              className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               <Phone className="h-4 w-4" />
               Message
@@ -72,10 +73,21 @@ const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: 
           {phone && (
             <a
               href={`tel:${phone}`}
-              className="flex items-center gap-2 rounded-full bg-muted px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted/80"
+              className="flex items-center gap-2 rounded-full bg-muted px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/80"
             >
               <Phone className="h-4 w-4" />
               Call
+            </a>
+          )}
+          {linkedinUrl && (
+            <a
+              href={linkedinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full bg-[#0077b5] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              <Linkedin className="h-4 w-4" />
+              LinkedIn
             </a>
           )}
         </div>
