@@ -287,14 +287,14 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages, onSendInboxMe
           </div>
         )}
 
-        {(isInbox || aiMessages.length > 0) && !showContactForm && !showVideoModal && (
+        {isInbox && !showContactForm && !showVideoModal && (
           <div className="mb-3 flex flex-wrap gap-2 bounce-in">
-<button
-                onClick={() => setShowVideoModal(true)}
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                📹 Request direct contact
-              </button>
+            <button
+              onClick={() => setShowVideoModal(true)}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              📹 Request direct contact
+            </button>
             <button
               onClick={() => {
                 const msg = "Hi! I'm interested in your services. Can you tell me more?";
@@ -315,6 +315,15 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages, onSendInboxMe
 
         {showContactForm && (
           <div className="mx-auto mb-4 max-w-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Send Message</span>
+              <button
+                onClick={() => setShowContactForm(false)}
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <X className="h-3 w-3" /> Close
+              </button>
+            </div>
             <ContactForm onClose={() => setShowContactForm(false)} />
           </div>
         )}
@@ -322,6 +331,7 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages, onSendInboxMe
         <div ref={bottomRef} />
       </div>
 
+      {(isInbox || aiMessages.length > 0) && (
       <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
           <Sparkles className="h-4 w-4 text-primary" />
@@ -342,6 +352,7 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages, onSendInboxMe
           <Send className="h-4 w-4" />
         </button>
       </form>
+      )}
 
       {showVideoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
