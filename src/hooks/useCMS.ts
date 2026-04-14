@@ -343,7 +343,8 @@ export function useMessages() {
       return fetchMessages();
     },
     enabled: isConfigured(),
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -358,8 +359,7 @@ export function useMessages() {
           schema: 'public',
           table: 'messages',
         },
-        (payload) => {
-          console.log('[Realtime] Message changed:', payload);
+        () => {
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
         }
       )
