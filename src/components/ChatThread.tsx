@@ -31,7 +31,7 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
   const isInbox = project.id === "inbox";
   const isAbout = project.id === "about";
   
-  const { data: dbMessages = [], isLoading: messagesLoading, refetch: refetchMessages } = useMessages();
+  const { data: dbMessages = [], isLoading: messagesLoading } = useMessages();
   const createMessage = useCreateMessage();
   const deleteOldMessages = useDeleteOldMessages(24);
 
@@ -70,15 +70,6 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
   }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   useEffect(() => {
-    if (isInbox) {
-      const interval = setInterval(() => {
-        refetchMessages();
-      }, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [isInbox, refetchMessages]);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages.length]);
 
@@ -96,7 +87,6 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
         admin_reply: null,
       });
       setNewMessage("");
-      refetchMessages();
     } catch (error) {
       console.error('Failed to send message:', error);
     }

@@ -205,4 +205,7 @@ ON CONFLICT DO NOTHING;
 -- REALTIME SUBSCRIPTIONS (Enable for live updates)
 -- =============================================
 -- In Supabase Dashboard > Database > Replication
--- Enable replication for: projects, reviews, statuses, profile tables
+-- Enable replication for: projects, reviews, statuses, profile, messages tables
+
+-- Enable realtime for messages table
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;

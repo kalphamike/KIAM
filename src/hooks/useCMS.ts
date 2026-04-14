@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase, isConfigured, fetchProjects, fetchReviews, fetchStatuses, fetchProfile, fetchAiResponses, fetchMessages, createMessage, markMessageAsRead, replyToMessage, deleteMessage, deleteOldMessages } from '@/lib/supabase';
 import type { DbProject, DbReview, DbStatus, DbProfile, DbAiResponse, DbMessage } from '@/lib/supabase';
 import type { Project } from '@/data/seed';
@@ -333,16 +334,43 @@ export function useUpdateProfile() {
 }
 
 export function useMessages() {
-  return useQuery({
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
     queryKey: QUERY_KEYS.messages,
     queryFn: async () => {
       if (!isConfigured()) return [];
       return fetchMessages();
     },
     enabled: isConfigured(),
-    staleTime: 10 * 1000,
-    refetchInterval: 30 * 1000,
+    staleTime: Infinity,
   });
+
+  useEffect(() => {
+    if (!supabase || !isConfigured()) return;
+
+    const channel = supabase
+      .channel('messages-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          console.log('[Realtime] Message changed:', payload);
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  return query;
 }
 
 export function useCreateMessage() {
