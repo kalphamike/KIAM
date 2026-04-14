@@ -344,6 +344,7 @@ export function useMessages() {
     },
     enabled: isConfigured(),
     staleTime: 0,
+    refetchInterval: 5000,
     refetchOnWindowFocus: false,
   });
 
@@ -351,11 +352,35 @@ export function useMessages() {
     if (!supabase || !isConfigured()) return;
 
     const channel = supabase
-      .channel('messages-changes')
+      .channel('public:messages')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          console.log('[Realtime] New message:', payload);
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          console.log('[Realtime] Updated message:', payload);
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
           schema: 'public',
           table: 'messages',
         },
@@ -363,7 +388,9 @@ export function useMessages() {
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);

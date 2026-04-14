@@ -21,9 +21,9 @@ import {
   QUERY_KEYS,
 } from '@/hooks/useCMS';
 import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
 import type { DbProject, DbReview, DbStatus, DbProfile, DbMessage } from '@/lib/supabase';
 import { Plus, Trash2, Edit2, LogOut, Package, Star, BarChart2, MessageSquare, User, Save, X, Check, RefreshCw, Mail, Eye, Reply, Send, Phone, Loader2 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { format, isAfter, subHours } from 'date-fns';
 
 type Tab = 'projects' | 'reviews' | 'statuses' | 'messages' | 'ai' | 'profile';
@@ -96,6 +96,29 @@ export default function AdminDashboard() {
       setLocalProfile(profile);
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('admin-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const loading = projectsLoading || reviewsLoading || statusesLoading || profileLoading || messagesLoading;
 
