@@ -31,6 +31,11 @@ const ChatThread = ({ project, visitorName, onBack }: ChatThreadProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   
   const isInbox = project.id === "inbox";
+
+  useEffect(() => {
+    setLocalMessages([]);
+    setNewMessage("");
+  }, [project.id, visitorName]);
   
   const { data: dbMessages = [] } = useMessages();
   const { data: projects = [] } = useProjects();
