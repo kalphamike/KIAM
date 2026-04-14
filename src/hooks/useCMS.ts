@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, isConfigured, fetchProjects, fetchReviews, fetchStatuses, fetchProfile, fetchAiResponses } from '@/lib/supabase';
-import type { DbProject, DbReview, DbStatus, DbProfile, DbAiResponse } from '@/lib/supabase';
+import { supabase, isConfigured, fetchProjects, fetchReviews, fetchStatuses, fetchProfile, fetchAiResponses, fetchMessages, createMessage, markMessageAsRead, replyToMessage, deleteMessage } from '@/lib/supabase';
+import type { DbProject, DbReview, DbStatus, DbProfile, DbAiResponse, DbMessage } from '@/lib/supabase';
 import type { Project } from '@/data/seed';
 import type { GoogleReview } from '@/data/google';
 
@@ -10,6 +10,7 @@ const QUERY_KEYS = {
   statuses: ['statuses'] as const,
   profile: ['profile'] as const,
   aiResponses: ['aiResponses'] as const,
+  messages: ['messages'] as const,
 };
 
 const generateId = (): string => Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -327,6 +328,80 @@ export function useUpdateProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.profile });
+    },
+  });
+}
+
+export function useMessages() {
+  return useQuery({
+    queryKey: QUERY_KEYS.messages,
+    queryFn: async () => {
+      if (!isConfigured()) return [];
+      return fetchMessages();
+    },
+    enabled: isConfigured(),
+    staleTime: 10 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
+export function useCreateMessage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (message: Omit<DbMessage, 'id' | 'created_at'>) => {
+      if (!supabase) throw new Error('Database not configured');
+      const { error, data } = await createMessage(message);
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+    },
+  });
+}
+
+export function useMarkMessageAsRead() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!supabase) throw new Error('Database not configured');
+      await markMessageAsRead(id);
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+    },
+  });
+}
+
+export function useReplyToMessage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, reply }: { id: string; reply: string }) => {
+      if (!supabase) throw new Error('Database not configured');
+      await replyToMessage(id, reply);
+      return { id, reply };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+    },
+  });
+}
+
+export function useDeleteMessage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!supabase) throw new Error('Database not configured');
+      await deleteMessage(id);
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
     },
   });
 }

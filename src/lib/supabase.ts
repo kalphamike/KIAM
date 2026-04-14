@@ -57,6 +57,17 @@ export interface DbProfile {
   linkedin_url: string;
 }
 
+export interface DbMessage {
+  id: string;
+  visitor_name: string;
+  visitor_email: string;
+  visitor_phone: string;
+  message: string;
+  status: 'new' | 'read' | 'replied';
+  admin_reply: string | null;
+  created_at: string;
+}
+
 export const fetchProjects = async (): Promise<DbProject[]> => {
   if (!supabase) return [];
   console.log('[Supabase] Fetching projects...');
@@ -151,4 +162,69 @@ export const deleteStatus = async (id: string): Promise<{ error: Error | null }>
   if (!supabase) return { error: new Error('Not configured') };
   const { error } = await supabase.from('statuses').delete().eq('id', id);
   return { error: error as Error | null };
+};
+
+// Messages functions
+export const fetchMessages = async (): Promise<DbMessage[]> => {
+  if (!supabase) return [];
+  console.log('[Supabase] Fetching messages...');
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) console.error('[Supabase] Fetch messages error:', error);
+  else console.log('[Supabase] Messages fetched:', data?.length || 0);
+  return data || [];
+};
+
+export const createMessage = async (message: Omit<DbMessage, 'id' | 'created_at'>): Promise<{ error: Error | null; data: DbMessage | null }> => {
+  if (!supabase) return { error: new Error('Not configured'), data: null };
+  console.log('[Supabase] Creating message from:', message.visitor_name);
+  const { data, error } = await supabase
+    .from('messages')
+    .insert([message])
+    .select()
+    .single();
+  if (error) console.error('[Supabase] Create message error:', error);
+  else console.log('[Supabase] Message created:', data?.id);
+  return { error: error as Error | null, data };
+};
+
+export const markMessageAsRead = async (id: string): Promise<{ error: Error | null }> => {
+  if (!supabase) return { error: new Error('Not configured') };
+  const { error } = await supabase
+    .from('messages')
+    .update({ status: 'read' })
+    .eq('id', id);
+  return { error: error as Error | null };
+};
+
+export const replyToMessage = async (id: string, adminReply: string): Promise<{ error: Error | null }> => {
+  if (!supabase) return { error: new Error('Not configured') };
+  console.log('[Supabase] Replying to message:', id);
+  const { error } = await supabase
+    .from('messages')
+    .update({ 
+      admin_reply: adminReply,
+      status: 'replied' 
+    })
+    .eq('id', id);
+  if (error) console.error('[Supabase] Reply error:', error);
+  return { error: error as Error | null };
+};
+
+export const deleteMessage = async (id: string): Promise<{ error: Error | null }> => {
+  if (!supabase) return { error: new Error('Not configured') };
+  const { error } = await supabase.from('messages').delete().eq('id', id);
+  return { error: error as Error | null };
+};
+
+export const getUnreadMessagesCount = async (): Promise<number> => {
+  if (!supabase) return 0;
+  const { count, error } = await supabase
+    .from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'new');
+  if (error) return 0;
+  return count || 0;
 };

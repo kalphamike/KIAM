@@ -6,6 +6,7 @@ import {
   useReviews,
   useStatuses,
   useProfile,
+  useMessages,
   useCreateProject,
   useUpdateProject,
   useDeleteProject,
@@ -15,14 +16,17 @@ import {
   useCreateStatus,
   useDeleteStatus,
   useUpdateProfile,
+  useReplyToMessage,
+  useDeleteMessage,
   QUERY_KEYS,
 } from '@/hooks/useCMS';
 import { supabase } from '@/lib/supabase';
-import type { DbProject, DbReview, DbStatus, DbProfile } from '@/lib/supabase';
-import { Plus, Trash2, Edit2, LogOut, Package, Star, BarChart2, MessageSquare, User, Save, X, Check, RefreshCw } from 'lucide-react';
+import type { DbProject, DbReview, DbStatus, DbProfile, DbMessage } from '@/lib/supabase';
+import { Plus, Trash2, Edit2, LogOut, Package, Star, BarChart2, MessageSquare, User, Save, X, Check, RefreshCw, Mail, Eye, Reply, Send } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
-type Tab = 'projects' | 'reviews' | 'statuses' | 'ai' | 'profile';
+type Tab = 'projects' | 'reviews' | 'statuses' | 'messages' | 'ai' | 'profile';
 
 function LoadingScreen() {
   return (
@@ -60,6 +64,7 @@ export default function AdminDashboard() {
   const { data: reviews = [], isLoading: reviewsLoading } = useReviews();
   const { data: statuses = [], isLoading: statusesLoading } = useStatuses();
   const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useMessages();
 
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
@@ -70,6 +75,11 @@ export default function AdminDashboard() {
   const createStatus = useCreateStatus();
   const deleteStatus = useDeleteStatus();
   const updateProfile = useUpdateProfile();
+  const replyToMessage = useReplyToMessage();
+  const deleteMessage = useDeleteMessage();
+
+  const [selectedMessage, setSelectedMessage] = useState<DbMessage | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   const [activeTab, setActiveTab] = useState<Tab>('projects');
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -87,7 +97,7 @@ export default function AdminDashboard() {
     }
   }, [profile]);
 
-  const loading = projectsLoading || reviewsLoading || statusesLoading || profileLoading;
+  const loading = projectsLoading || reviewsLoading || statusesLoading || profileLoading || messagesLoading;
 
   if (authLoading || loading) {
     return <LoadingScreen />;
@@ -314,6 +324,7 @@ export default function AdminDashboard() {
     { id: 'projects', label: 'Projects', icon: Package },
     { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'statuses', label: 'Statuses', icon: BarChart2 },
+    { id: 'messages', label: 'Messages', icon: Mail, badge: messages.filter(m => m.status === 'new').length },
     { id: 'ai', label: 'AI Responses', icon: MessageSquare },
     { id: 'profile', label: 'Profile', icon: User },
   ] as const;
@@ -336,6 +347,11 @@ export default function AdminDashboard() {
               >
                 <tab.icon className="h-4 w-4" />
                 {tab.label}
+                {(tab as { badge?: number }).badge ? (
+                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    {(tab as { badge?: number }).badge}
+                  </span>
+                ) : null}
               </button>
             ))}
           </nav>
@@ -463,6 +479,108 @@ export default function AdminDashboard() {
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'messages' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Visitor Messages</h2>
+                <button onClick={() => refetchMessages()} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                  <RefreshCw className="h-4 w-4" /> Refresh
+                </button>
+              </div>
+              
+              {messages.length === 0 ? (
+                <div className="text-center py-12">
+                  <Mail className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                  <p className="text-muted-foreground">No messages yet</p>
+                  <p className="text-sm text-muted-foreground/60">Messages from visitors will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map(msg => (
+                    <div 
+                      key={msg.id} 
+                      className={`p-4 rounded-lg border bg-card ${
+                        msg.status === 'new' ? 'border-primary shadow-sm' : 'border-border'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-foreground">{msg.visitor_name}</h3>
+                            {msg.status === 'new' && (
+                              <span className="px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">New</span>
+                            )}
+                            {msg.status === 'replied' && (
+                              <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">Replied</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {msg.visitor_email} {msg.visitor_phone && `• ${msg.visitor_phone}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground/60">{format(new Date(msg.created_at), 'PPp')}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => window.open(`https://wa.me/${msg.visitor_phone.replace('+', '')}`, '_blank')}
+                            className="p-2 hover:bg-muted rounded-lg"
+                            title="Reply via WhatsApp"
+                          >
+                            <Reply className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                          <button 
+                            onClick={() => deleteMessage.mutate(msg.id)}
+                            className="p-2 hover:bg-destructive/10 rounded-lg"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-muted/50 rounded-lg p-3 mb-3">
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{msg.message}</p>
+                      </div>
+                      
+                      {msg.admin_reply && (
+                        <div className="bg-primary/10 rounded-lg p-3">
+                          <p className="text-xs font-medium text-primary mb-1">Your Reply:</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{msg.admin_reply}</p>
+                        </div>
+                      )}
+                      
+                      {!msg.admin_reply && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Type a reply..."
+                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                                replyToMessage.mutate({ id: msg.id, reply: (e.target as HTMLInputElement).value });
+                                (e.target as HTMLInputElement).value = '';
+                              }
+                            }}
+                          />
+                          <button 
+                            onClick={(e) => {
+                              const input = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement);
+                              if (input?.value.trim()) {
+                                replyToMessage.mutate({ id: msg.id, reply: input.value });
+                                input.value = '';
+                              }
+                            }}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+                          >
+                            <Send className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

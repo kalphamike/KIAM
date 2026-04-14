@@ -74,6 +74,20 @@ CREATE TABLE IF NOT EXISTS ai_responses (
 );
 
 -- =============================================
+-- MESSAGES TABLE (Visitor Contact Form)
+-- =============================================
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    visitor_name TEXT NOT NULL,
+    visitor_email TEXT NOT NULL,
+    visitor_phone TEXT DEFAULT '',
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'new' CHECK (status IN ('new', 'read', 'replied')),
+    admin_reply TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================
 -- ROW LEVEL SECURITY (RLS)
 -- =============================================
 
@@ -139,6 +153,25 @@ CREATE POLICY "Public can view ai_responses" ON ai_responses
 
 CREATE POLICY "Authenticated can manage ai_responses" ON ai_responses
     FOR ALL USING (true);
+
+-- Messages policies
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- Visitors can INSERT messages (send contact form)
+CREATE POLICY "Public can insert messages" ON messages
+    FOR INSERT WITH CHECK (true);
+
+-- Everyone can VIEW messages (admin sees them)
+CREATE POLICY "Public can view messages" ON messages
+    FOR SELECT USING (true);
+
+-- Admin can UPDATE (reply to) messages
+CREATE POLICY "Public can update messages" ON messages
+    FOR UPDATE USING (true);
+
+-- Admin can DELETE messages
+CREATE POLICY "Public can delete messages" ON messages
+    FOR DELETE USING (true);
 
 -- =============================================
 -- SAMPLE DATA (Optional - Remove in production)
