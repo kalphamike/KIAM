@@ -55,19 +55,19 @@ const ChatThread = ({ project, visitorName, onBack }: ChatThreadProps) => {
           const cutoff = subHours(new Date(), 24);
           return isAfter(msgDate, cutoff);
         })
+        .filter(m => m.admin_reply)
     : [];
+  
+  const adminReplies: ChatMessage[] = myMessages.map(m => ({
+    id: `${m.id}-reply`,
+    text: m.admin_reply,
+    sender: 'admin' as const,
+    timestamp: m.created_at
+  }));
   
   const chatMessages: ChatMessage[] = [
     ...localMessages,
-    ...(isInbox ? myMessages.flatMap(m => {
-      const messages: ChatMessage[] = [
-        { id: m.id, text: m.message, sender: 'visitor', timestamp: m.created_at }
-      ];
-      if (m.admin_reply) {
-        messages.push({ id: `${m.id}-reply`, text: m.admin_reply, sender: 'admin', timestamp: m.created_at });
-      }
-      return messages;
-    }) : [])
+    ...adminReplies
   ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   useEffect(() => {
