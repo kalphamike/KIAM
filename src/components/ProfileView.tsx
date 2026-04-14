@@ -1,4 +1,6 @@
-import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight, Linkedin, ExternalLink } from "lucide-react";
+import { Phone, Mail, MapPin, Briefcase, Globe, ArrowRight, Linkedin, ExternalLink, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import ContactForm from "./ContactForm";
 
 const PROFILE_AVATAR = "https://raw.githubusercontent.com/kalphamike/KIAM/refs/heads/main/src/assets/avatars/me.jpeg";
 
@@ -33,6 +35,7 @@ interface ProfileViewProps {
 }
 
 const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: ProfileViewProps) => {
+  const [showContactForm, setShowContactForm] = useState(false);
   const name = profile?.name || "Your Name";
   const headline = profile?.headline || "Full-Stack Developer";
   const about = profile?.about || "";
@@ -210,6 +213,43 @@ const ProfileView = ({ profile, reviews = [], projects = [], onSelectProject }: 
           </div>
         </div>
       )}
+
+      {/* Contact Section */}
+      <div className="rounded-xl bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium text-foreground">Get In Touch</h3>
+          </div>
+          {!showContactForm && (
+            <button
+              onClick={() => setShowContactForm(true)}
+              className="text-xs text-primary hover:underline"
+            >
+              Send a message
+            </button>
+          )}
+        </div>
+        
+        {showContactForm ? (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground">Fill out the form below</p>
+              <button
+                onClick={() => setShowContactForm(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+            <ContactForm onClose={() => setShowContactForm(false)} />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Interested in working together? Send me a message and I'll get back to you.
+          </p>
+        )}
+      </div>
     </div>
   );
 };
