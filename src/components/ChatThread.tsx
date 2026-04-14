@@ -42,17 +42,19 @@ const ChatThread = ({ project, visitorName, onBack }: ChatThreadProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const myMessages = dbMessages
-    .filter(m => visitorName && m.visitor_name.toLowerCase() === visitorName.toLowerCase())
-    .filter(m => {
-      const msgDate = new Date(m.created_at);
-      const cutoff = subHours(new Date(), 24);
-      return isAfter(msgDate, cutoff);
-    });
+  const myMessages = isInbox 
+    ? dbMessages
+        .filter(m => visitorName && m.visitor_name.toLowerCase() === visitorName.toLowerCase())
+        .filter(m => {
+          const msgDate = new Date(m.created_at);
+          const cutoff = subHours(new Date(), 24);
+          return isAfter(msgDate, cutoff);
+        })
+    : [];
   
   const chatMessages: ChatMessage[] = [
     ...localMessages,
-    ...myMessages.flatMap(m => {
+    ...(isInbox ? myMessages.flatMap(m => {
       const messages: ChatMessage[] = [
         { id: m.id, text: m.message, sender: 'visitor', timestamp: m.created_at }
       ];
@@ -60,7 +62,7 @@ const ChatThread = ({ project, visitorName, onBack }: ChatThreadProps) => {
         messages.push({ id: `${m.id}-reply`, text: m.admin_reply, sender: 'admin', timestamp: m.created_at });
       }
       return messages;
-    })
+    }) : [])
   ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   useEffect(() => {
