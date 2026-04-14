@@ -3,7 +3,8 @@ import { ArrowLeft, Phone, ExternalLink, Send, Video, X, Calendar, Clock, Loader
 import type { Project, Message } from "@/data/seed";
 import { OWNER_PHONE, OWNER_NAME } from "@/data/seed";
 import { format, isAfter, subHours } from "date-fns";
-import { useMessages, useCreateMessage, useDeleteOldMessages } from "@/hooks/useCMS";
+import { useMessages, useCreateMessage, useDeleteOldMessages, useProjects } from "@/hooks/useCMS";
+import { getHybridAIResponse, getSimpleAIResponse } from "@/lib/hybrid-ai";
 
 interface ChatThreadProps {
   project: Project;
@@ -18,20 +19,21 @@ interface ChatMessage {
   text: string;
   sender: "visitor" | "admin";
   timestamp: string;
-  isReply?: boolean;
 }
 
-const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadProps) => {
+const ChatThread = ({ project, visitorName, onBack }: ChatThreadProps) => {
   const [newMessage, setNewMessage] = useState("");
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   
   const isInbox = project.id === "inbox";
-  const isAbout = project.id === "about";
   
-  const { data: dbMessages = [], isLoading: messagesLoading } = useMessages();
+  const { data: dbMessages = [] } = useMessages();
+  const { data: projects = [] } = useProjects();
   const createMessage = useCreateMessage();
   const deleteOldMessages = useDeleteOldMessages(24);
 
@@ -48,47 +50,69 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
       return isAfter(msgDate, cutoff);
     });
   
-  const chatMessages: ChatMessage[] = myMessages.flatMap(m => {
-    const messages: ChatMessage[] = [
-      {
-        id: m.id,
-        text: m.message,
-        sender: 'visitor' as const,
-        timestamp: m.created_at,
+  const chatMessages: ChatMessage[] = [
+    ...localMessages,
+    ...myMessages.flatMap(m => {
+      const messages: ChatMessage[] = [
+        { id: m.id, text: m.message, sender: 'visitor', timestamp: m.created_at }
+      ];
+      if (m.admin_reply) {
+        messages.push({ id: `${m.id}-reply`, text: m.admin_reply, sender: 'admin', timestamp: m.created_at });
       }
-    ];
-    if (m.admin_reply) {
-      messages.push({
-        id: `${m.id}-reply`,
-        text: m.admin_reply,
-        sender: 'admin' as const,
-        timestamp: m.created_at,
-        isReply: true,
-      });
-    }
-    return messages;
-  }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      return messages;
+    })
+  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages.length]);
+  }, [chatMessages.length, isAiTyping]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !isInbox) return;
+    if (!newMessage.trim()) return;
     
-    try {
-      await createMessage.mutateAsync({
-        visitor_name: visitorName,
-        visitor_email: '',
-        visitor_phone: '',
-        message: newMessage.trim(),
-        status: 'new',
-        admin_reply: null,
-      });
+    if (isInbox) {
+      const userMsg: ChatMessage = { id: `local-${Date.now()}`, text: newMessage.trim(), sender: 'visitor', timestamp: new Date().toISOString() };
+      setLocalMessages(prev => [...prev, userMsg]);
       setNewMessage("");
-    } catch (error) {
-      console.error('Failed to send message:', error);
+      setIsAiTyping(true);
+      
+      try {
+        await createMessage.mutateAsync({
+          visitor_name: visitorName,
+          visitor_email: '',
+          visitor_phone: '',
+          message: newMessage.trim(),
+          status: 'new',
+          admin_reply: null,
+        });
+        
+        const response = getSimpleAIResponse(newMessage);
+        
+        setTimeout(() => {
+          const aiMsg: ChatMessage = { id: `ai-${Date.now()}`, text: response, sender: 'admin', timestamp: new Date().toISOString() };
+          setLocalMessages(prev => [...prev, aiMsg]);
+          setIsAiTyping(false);
+        }, 1500);
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        setIsAiTyping(false);
+      }
+    } else {
+      const userMsg: ChatMessage = { id: `local-${Date.now()}`, text: newMessage.trim(), sender: 'visitor', timestamp: new Date().toISOString() };
+      setLocalMessages(prev => [...prev, userMsg]);
+      setNewMessage("");
+      setIsAiTyping(true);
+      
+      const allProjects = [...projects, project];
+      
+      const { response } = await getHybridAIResponse(project.id, newMessage, allProjects);
+      
+      setTimeout(() => {
+        const aiMsg: ChatMessage = { id: `ai-${Date.now()}`, text: response, sender: 'admin', timestamp: new Date().toISOString() };
+        setLocalMessages(prev => [...prev, aiMsg]);
+        setIsAiTyping(false);
+      }, 2000);
     }
   };
 
@@ -153,10 +177,15 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
       </div>
 
       <div className="chat-pattern flex-1 overflow-y-auto px-3 py-4 scroll-dots">
-        {project.link && !isInbox && !isAbout && (
+        {project.link && !isInbox && (
           <div className="mx-auto mb-4 max-w-sm rounded-lg bg-card p-4 shadow-sm">
             <p className="mb-2 text-sm font-medium text-foreground">{project.title}</p>
             <p className="mb-3 text-xs text-muted-foreground">{project.shortDescription}</p>
+            {project.techStack && project.techStack.length > 0 && (
+              <p className="mb-3 text-xs text-muted-foreground">
+                🛠️ {project.techStack.join(", ")}
+              </p>
+            )}
             <a
               href={project.link}
               target="_blank"
@@ -179,9 +208,17 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
           </div>
         )}
 
-        {isInbox && messagesLoading && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        {!isInbox && chatMessages.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-4 py-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+              <ExternalLink className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-center text-sm text-muted-foreground">
+              Ask me anything about <strong>{project.title}</strong>!
+            </p>
+            <p className="text-center text-xs text-muted-foreground">
+              Try: "What is this project about?" or "What technologies does it use?"
+            </p>
           </div>
         )}
 
@@ -205,55 +242,39 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
           </div>
         ))}
 
+        {isAiTyping && (
+          <div className="mb-3 flex justify-start">
+            <div className="bubble-in flex items-center gap-1 px-4 py-3">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "0ms" }} />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "150ms" }} />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        )}
+
         <div ref={bottomRef} />
       </div>
 
       <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
-        {isInbox ? (
-          <>
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={`Message ${OWNER_NAME}...`}
-              className="flex-1 rounded-full bg-muted px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              aria-label="Type a message"
-            />
-            <button
-              type="submit"
-              disabled={!newMessage.trim() || createMessage.isPending}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {createMessage.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <Phone className="h-4 w-4 text-primary" />
-            </div>
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={`Ask about this project... e.g., "What features does ${project.title} have?"`}
-              className="flex-1 rounded-full bg-muted px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              aria-label="Type a message"
-            />
-            <a
-              href={`https://wa.me/${OWNER_PHONE.replace("+", "")}?text=${encodeURIComponent(newMessage)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-            </a>
-          </>
-        )}
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder={isInbox ? `Message ${OWNER_NAME}...` : `Ask about ${project.title}...`}
+          className="flex-1 rounded-full bg-muted px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          aria-label="Type a message"
+        />
+        <button
+          type="submit"
+          disabled={!newMessage.trim() || createMessage.isPending || isAiTyping}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {createMessage.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+        </button>
       </form>
 
       {showVideoModal && (
