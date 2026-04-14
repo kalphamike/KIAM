@@ -2,6 +2,20 @@ import { useProjects, useReviews, useStatuses, useProfile, useAiResponses } from
 import type { Project } from '@/data/seed';
 import type { GoogleReview } from '@/data/google';
 
+const PROFILE_AVATAR = "https://raw.githubusercontent.com/kalphamike/KIAM/refs/heads/main/src/assets/avatars/me.jpeg";
+
+const DEFAULT_INBOX: Project = {
+  id: "inbox",
+  title: "Mike(Michelange)",
+  avatarUrl: PROFILE_AVATAR,
+  shortDescription: "Send me a message",
+  link: "",
+  lastMessage: "Let's chat!",
+  lastUpdated: new Date().toISOString(),
+  unread: 0,
+  techStack: [],
+};
+
 interface StatusItem {
   id: string;
   projectId: string;
@@ -37,7 +51,7 @@ export function usePortfolio() {
   const { data: dbProfile, isLoading: profileLoading } = useProfile();
   const { data: aiResponses = {} } = useAiResponses();
 
-  const projects: Project[] = dbProjects;
+  const projects: Project[] = [DEFAULT_INBOX, ...dbProjects.filter(p => p.id !== 'inbox')];
   const reviews: GoogleReview[] = dbReviews;
   const statuses: StatusItem[] = dbStatuses;
   

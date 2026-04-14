@@ -41,7 +41,7 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
   }, []);
 
   const myMessages = dbMessages
-    .filter(m => m.visitor_name.toLowerCase() === visitorName.toLowerCase())
+    .filter(m => visitorName && m.visitor_name.toLowerCase() === visitorName.toLowerCase())
     .filter(m => {
       const msgDate = new Date(m.created_at);
       const cutoff = subHours(new Date(), 24);
