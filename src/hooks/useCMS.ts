@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, isConfigured, fetchProjects, fetchReviews, fetchStatuses, fetchProfile, fetchAiResponses, fetchMessages, createMessage, markMessageAsRead, replyToMessage, deleteMessage } from '@/lib/supabase';
+import { supabase, isConfigured, fetchProjects, fetchReviews, fetchStatuses, fetchProfile, fetchAiResponses, fetchMessages, createMessage, markMessageAsRead, replyToMessage, deleteMessage, deleteOldMessages } from '@/lib/supabase';
 import type { DbProject, DbReview, DbStatus, DbProfile, DbAiResponse, DbMessage } from '@/lib/supabase';
 import type { Project } from '@/data/seed';
 import type { GoogleReview } from '@/data/google';
@@ -399,6 +399,21 @@ export function useDeleteMessage() {
       if (!supabase) throw new Error('Database not configured');
       await deleteMessage(id);
       return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });
+    },
+  });
+}
+
+export function useDeleteOldMessages(hoursOld: number = 24) {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async () => {
+      if (!supabase) throw new Error('Database not configured');
+      const { deleted } = await deleteOldMessages(hoursOld);
+      return deleted;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.messages });

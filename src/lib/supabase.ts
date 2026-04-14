@@ -219,6 +219,22 @@ export const deleteMessage = async (id: string): Promise<{ error: Error | null }
   return { error: error as Error | null };
 };
 
+export const deleteOldMessages = async (hoursOld: number = 24): Promise<{ error: Error | null; deleted: number }> => {
+  if (!supabase) return { error: new Error('Not configured'), deleted: 0 };
+  const cutoffDate = new Date();
+  cutoffDate.setHours(cutoffDate.getHours() - hoursOld);
+  
+  const { error, count } = await supabase
+    .from('messages')
+    .delete()
+    .lt('created_at', cutoffDate.toISOString());
+  
+  if (error) console.error('[Supabase] Delete old messages error:', error);
+  else console.log('[Supabase] Deleted old messages:', count);
+  
+  return { error: error as Error | null, deleted: count || 0 };
+};
+
 export const getUnreadMessagesCount = async (): Promise<number> => {
   if (!supabase) return 0;
   const { count, error } = await supabase

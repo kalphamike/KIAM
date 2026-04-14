@@ -24,7 +24,7 @@ import { supabase } from '@/lib/supabase';
 import type { DbProject, DbReview, DbStatus, DbProfile, DbMessage } from '@/lib/supabase';
 import { Plus, Trash2, Edit2, LogOut, Package, Star, BarChart2, MessageSquare, User, Save, X, Check, RefreshCw, Mail, Eye, Reply, Send } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, isAfter, subHours } from 'date-fns';
 
 type Tab = 'projects' | 'reviews' | 'statuses' | 'messages' | 'ai' | 'profile';
 
@@ -482,107 +482,159 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === 'messages' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">Visitor Messages</h2>
-                <button onClick={() => refetchMessages()} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-                  <RefreshCw className="h-4 w-4" /> Refresh
-                </button>
-              </div>
-              
-              {messages.length === 0 ? (
-                <div className="text-center py-12">
-                  <Mail className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-                  <p className="text-muted-foreground">No messages yet</p>
-                  <p className="text-sm text-muted-foreground/60">Messages from visitors will appear here</p>
+          {activeTab === 'messages' && (() => {
+            const cutoff = subHours(new Date(), 24);
+            const recentMessages = messages.filter(m => isAfter(new Date(m.created_at), cutoff));
+            
+            const groupedMessages = recentMessages.reduce((acc, msg) => {
+              const key = msg.visitor_name.toLowerCase();
+              if (!acc[key]) {
+                acc[key] = [];
+              }
+              acc[key].push(msg);
+              return acc;
+            }, {} as Record<string, typeof messages>);
+
+            const conversations = Object.entries(groupedMessages).map(([name, msgs]) => {
+              const sortedMsgs = msgs.sort((a, b) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              );
+              const latestMsg = sortedMsgs[0];
+              const hasUnread = msgs.some(m => m.status === 'new');
+              return {
+                name,
+                displayName: latestMsg.visitor_name,
+                email: latestMsg.visitor_email,
+                phone: latestMsg.visitor_phone,
+                messages: sortedMsgs,
+                latestTime: latestMsg.created_at,
+                status: hasUnread ? 'new' : (latestMsg.status === 'replied' ? 'replied' : 'pending'),
+              };
+            }).sort((a, b) => 
+              a.status === 'new' ? -1 : b.status === 'new' ? 1 : 
+              new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
+            );
+
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold text-foreground">Conversations</h2>
+                    <span className="px-2 py-0.5 text-xs bg-muted rounded-full">{conversations.length}</span>
+                  </div>
+                  <button onClick={() => refetchMessages()} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                    <RefreshCw className="h-4 w-4" /> Refresh
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map(msg => (
-                    <div 
-                      key={msg.id} 
-                      className={`p-4 rounded-lg border bg-card ${
-                        msg.status === 'new' ? 'border-primary shadow-sm' : 'border-border'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-foreground">{msg.visitor_name}</h3>
-                            {msg.status === 'new' && (
-                              <span className="px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">New</span>
-                            )}
-                            {msg.status === 'replied' && (
-                              <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">Replied</span>
-                            )}
+                
+                {conversations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Mail className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                    <p className="text-muted-foreground">No conversations yet</p>
+                    <p className="text-sm text-muted-foreground/60">Visitors will appear here after sending messages</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {conversations.map((conv) => (
+                      <div 
+                        key={conv.name} 
+                        className={`p-4 rounded-lg border bg-card ${
+                          conv.status === 'new' ? 'border-primary shadow-sm' : 'border-border'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium text-foreground">{conv.displayName}</h3>
+                              {conv.status === 'new' && (
+                                <span className="px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">New</span>
+                              )}
+                              {conv.status === 'replied' && (
+                                <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">Replied</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {conv.email && conv.email !== '' ? conv.email : 'No email'}
+                              {conv.phone && conv.phone !== '' && ` • ${conv.phone}`}
+                            </p>
+                            <p className="text-xs text-muted-foreground/60">{format(new Date(conv.latestTime), 'PPp')}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {msg.visitor_email} {msg.visitor_phone && `• ${msg.visitor_phone}`}
-                          </p>
-                          <p className="text-xs text-muted-foreground/60">{format(new Date(msg.created_at), 'PPp')}</p>
+                          <div className="flex gap-2">
+                            {conv.phone && conv.phone !== '' && (
+                              <button 
+                                onClick={() => window.open(`https://wa.me/${conv.phone.replace('+', '')}`, '_blank')}
+                                className="p-2 hover:bg-muted rounded-lg"
+                                title="Reply via WhatsApp"
+                              >
+                                <Reply className="h-4 w-4 text-muted-foreground" />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => conv.messages.forEach(m => deleteMessage.mutate(m.id))}
+                              className="p-2 hover:bg-destructive/10 rounded-lg"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => window.open(`https://wa.me/${msg.visitor_phone.replace('+', '')}`, '_blank')}
-                            className="p-2 hover:bg-muted rounded-lg"
-                            title="Reply via WhatsApp"
-                          >
-                            <Reply className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                          <button 
-                            onClick={() => deleteMessage.mutate(msg.id)}
-                            className="p-2 hover:bg-destructive/10 rounded-lg"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </button>
+                        
+                        <div className="space-y-2 mb-3">
+                          {conv.messages.map((msg, idx) => (
+                            <div key={msg.id} className="bg-muted/50 rounded-lg p-3">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-medium text-primary">
+                                  {idx === 0 ? 'Visitor' : 'You'}
+                                </span>
+                                <span className="text-xs text-muted-foreground/60">
+                                  {format(new Date(msg.created_at), 'HH:mm')}
+                                </span>
+                              </div>
+                              <p className="text-sm text-foreground whitespace-pre-wrap">{msg.message}</p>
+                              {msg.admin_reply && (
+                                <div className="mt-2 pt-2 border-t border-border/50">
+                                  <p className="text-xs font-medium text-primary mb-1">Your reply:</p>
+                                  <p className="text-sm text-foreground whitespace-pre-wrap">{msg.admin_reply}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
+                        
+                        {!conv.messages[0].admin_reply && (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Type a reply..."
+                              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              id={`reply-${conv.name}`}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                                  replyToMessage.mutate({ id: conv.messages[0].id, reply: (e.target as HTMLInputElement).value });
+                                  (e.target as HTMLInputElement).value = '';
+                                }
+                              }}
+                            />
+                            <button 
+                              onClick={(e) => {
+                                const input = document.getElementById(`reply-${conv.name}`) as HTMLInputElement;
+                                if (input?.value.trim()) {
+                                  replyToMessage.mutate({ id: conv.messages[0].id, reply: input.value });
+                                  input.value = '';
+                                }
+                              }}
+                              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+                            >
+                              <Send className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      
-                      <div className="bg-muted/50 rounded-lg p-3 mb-3">
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{msg.message}</p>
-                      </div>
-                      
-                      {msg.admin_reply && (
-                        <div className="bg-primary/10 rounded-lg p-3">
-                          <p className="text-xs font-medium text-primary mb-1">Your Reply:</p>
-                          <p className="text-sm text-foreground whitespace-pre-wrap">{msg.admin_reply}</p>
-                        </div>
-                      )}
-                      
-                      {!msg.admin_reply && (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Type a reply..."
-                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
-                                replyToMessage.mutate({ id: msg.id, reply: (e.target as HTMLInputElement).value });
-                                (e.target as HTMLInputElement).value = '';
-                              }
-                            }}
-                          />
-                          <button 
-                            onClick={(e) => {
-                              const input = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement);
-                              if (input?.value.trim()) {
-                                replyToMessage.mutate({ id: msg.id, reply: input.value });
-                                input.value = '';
-                              }
-                            }}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
-                          >
-                            <Send className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {activeTab === 'ai' && (
             <div>

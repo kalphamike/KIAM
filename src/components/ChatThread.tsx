@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Phone, ExternalLink, Send, Video, X, Calendar, Clock, Loader2 } from "lucide-react";
 import type { Project, Message } from "@/data/seed";
 import { OWNER_PHONE, OWNER_NAME } from "@/data/seed";
-import { format } from "date-fns";
-import { useMessages, useCreateMessage } from "@/hooks/useCMS";
+import { format, isAfter, subHours } from "date-fns";
+import { useMessages, useCreateMessage, useDeleteOldMessages } from "@/hooks/useCMS";
 
 interface ChatThreadProps {
   project: Project;
@@ -18,6 +18,7 @@ interface ChatMessage {
   text: string;
   sender: "visitor" | "admin";
   timestamp: string;
+  isReply?: boolean;
 }
 
 const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadProps) => {
@@ -32,23 +33,41 @@ const ChatThread = ({ project, visitorName, onBack, inboxMessages }: ChatThreadP
   
   const { data: dbMessages = [], isLoading: messagesLoading, refetch: refetchMessages } = useMessages();
   const createMessage = useCreateMessage();
-  
-  const visitorSessionId = typeof window !== "undefined" 
-    ? sessionStorage.getItem('visitorSessionId') || (() => {
-        const id = `visitor_${Date.now()}`;
-        sessionStorage.setItem('visitorSessionId', id);
-        return id;
-      })()
-    : 'visitor_temp';
+  const deleteOldMessages = useDeleteOldMessages(24);
 
-  const myMessages = dbMessages.filter(m => m.visitor_name === visitorName);
+  useEffect(() => {
+    deleteOldMessages.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const myMessages = dbMessages
+    .filter(m => m.visitor_name.toLowerCase() === visitorName.toLowerCase())
+    .filter(m => {
+      const msgDate = new Date(m.created_at);
+      const cutoff = subHours(new Date(), 24);
+      return isAfter(msgDate, cutoff);
+    });
   
-  const chatMessages: ChatMessage[] = myMessages.map(m => ({
-    id: m.id,
-    text: m.admin_reply || m.message,
-    sender: m.admin_reply ? 'admin' : 'visitor',
-    timestamp: m.created_at,
-  }));
+  const chatMessages: ChatMessage[] = myMessages.flatMap(m => {
+    const messages: ChatMessage[] = [
+      {
+        id: m.id,
+        text: m.message,
+        sender: 'visitor' as const,
+        timestamp: m.created_at,
+      }
+    ];
+    if (m.admin_reply) {
+      messages.push({
+        id: `${m.id}-reply`,
+        text: m.admin_reply,
+        sender: 'admin' as const,
+        timestamp: m.created_at,
+        isReply: true,
+      });
+    }
+    return messages;
+  }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   useEffect(() => {
     if (isInbox) {
